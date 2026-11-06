@@ -218,3 +218,9 @@ input.in:focus { border-color: var(--accent); }
 
 @media (max-width: 1100px) { .co-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } .co-grid .c4, .co-grid .c8 { grid-column: span 6; } .net { grid-template-columns: 1fr; } .net-side { border-left: 0; padding-left: 0; } .layout-pick { display: none; } }
 @media (max-width: 760px) { .co-grid { grid-template-columns: 1fr; padding: 8px; } .co-grid > * { grid-column: 1 / -1 !important; } .co-top { flex-wrap: wrap; } .co-top h1 { font-size: 18px; } .edit-btn, .h-txt { display: none; } .tray { top: 44px; } }
+
+/* keep the top bar on one line at laptop widths */
+.health, .edit-btn, .brand { white-space: nowrap; }
+.cmd-open { min-width: 220px; }
+@media (max-width: 1500px) { .clocks span:nth-child(n+4) { display: none; } }
+@media (max-width: 1320px) { .h-txt { display: none; } .clocks span:nth-child(n+3) { display: none; } }
