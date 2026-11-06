@@ -256,8 +256,13 @@ export const IPOS: SourceDef<IpoEvent[]> = {
 };
 
 // ============================ Groq (optional key) for the written brief
-export async function groqBrief(prompt: string): Promise<string> {
-  const key = getKey('groq');
+export interface PublishedBrief { text: string; at: number; model: string }
+export const BRIEF: SourceDef<PublishedBrief> = {
+  id: 'brief', label: 'Morning brief', provider: 'Groq · Llama 3.3 70B', every: 15 * 60_000,
+  asOf: snapTime('brief.json'),
+  fetch: () => snap<PublishedBrief>('brief.json'),
+};
+export async function groqBrief(prompt: string, key = getKey('groq')): Promise<string> {
   if (!key) throw new Error('Add a Groq key in Settings');
   const res = await getJSON<{ choices: { message: { content: string } }[] }>('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST', timeout: 45000,

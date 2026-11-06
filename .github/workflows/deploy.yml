@@ -42,6 +42,7 @@ jobs:
             fintel-project/public/snap/quotes-1y.json
             fintel-project/public/snap/quotes-5y.json
             fintel-project/public/snap/chart-_GSPC-max.json
+            fintel-project/public/snap/brief.json
           key: companies-${{ steps.day.outputs.d }}-${{ github.run_id }}
           restore-keys: |
             companies-${{ steps.day.outputs.d }}-
@@ -52,6 +53,7 @@ jobs:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           COMPANIES_MAX_AGE_H: '20'
       - name: Build
         run: npx vite build --base=/${{ github.event.repository.name }}/
