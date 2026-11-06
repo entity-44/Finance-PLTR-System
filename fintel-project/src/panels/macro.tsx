@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { atOrBefore, CURVE, diffSeries, FRED_DAILY, FRED_MACRO, last, pctChangeSeries, yoySeries, type Series } from '@/data/fred';
-import { AUCTIONS, POLICY, type PolicyRate } from '@/data/sources';
+import { AUCTIONS, IMF, POLICY, type PolicyRate } from '@/data/sources';
+import { COUNTRIES } from '@/data/universe';
 import { useSource } from '@/data/store';
 import { useQuotes } from '@/data/yahoo';
 import { FOMC_2026 } from '@/data/universe';
@@ -215,6 +216,49 @@ export function GlobalRates() {
             </tr>
           ))}
         </tbody>
+      </table>
+    </Panel>
+  );
+}
+
+// ---------------------------------------------------------------- IMF World Economic Outlook, every tracked country
+type WeoCol = { key: string; ind: string; year: number; label: string; dp?: number };
+export function WorldOutlook() {
+  const s = useSource(IMF);
+  const now = new Date().getFullYear();
+  const cols: WeoCol[] = [
+    { key: 'g0', ind: 'NGDP_RPCH', year: now, label: `GDP ${now}` }, { key: 'g1', ind: 'NGDP_RPCH', year: now + 1, label: `GDP ${now + 1}` },
+    { key: 'c0', ind: 'PCPIPCH', year: now, label: `CPI ${now}` }, { key: 'c1', ind: 'PCPIPCH', year: now + 1, label: `CPI ${now + 1}` },
+    { key: 'u0', ind: 'LUR', year: now, label: 'Unemp.' }, { key: 'f0', ind: 'GGXCNL_NGDP', year: now, label: 'Fiscal bal.' },
+    { key: 'd0', ind: 'GGXWDG_NGDP', year: now, label: 'Gov. debt' }, { key: 'a0', ind: 'BCA_NGDPD', year: now, label: 'Current acct' },
+    { key: 'y0', ind: 'NGDPD', year: now, label: 'GDP $bn', dp: 0 },
+  ];
+  const [sort, setSort] = useState<{ key: string; dir: 1 | -1 }>({ key: 'y0', dir: -1 });
+  const val = (iso: string, c: WeoCol) => s.data?.data[iso]?.[c.ind]?.[String(c.year)];
+  const col = cols.find((c) => c.key === sort.key) ?? cols[cols.length - 1];
+  const rows = COUNTRIES.filter((c) => s.data?.data[c.iso3]).sort((a, b) => {
+    const x = val(a.iso3, col), y = val(b.iso3, col);
+    return x == null ? 1 : y == null ? -1 : (x - y) * sort.dir;
+  });
+  const world = s.data?.data.WEOWORLD;
+  const tone = (c: WeoCol, v: number) => (c.ind === 'NGDP_RPCH' ? (v < 0 ? 'down' : v >= 4 ? 'up' : '') : c.ind === 'PCPIPCH' ? (v >= 6 ? 'down' : '') : c.ind === 'GGXCNL_NGDP' ? (v <= -5 ? 'down' : '') : c.ind === 'GGXWDG_NGDP' ? (v >= 100 ? 'down' : '') : '');
+  return (
+    <Panel id="p-weo" title="World economic outlook" src={s} span="c12"
+      note={`${s.data?.edition ?? 'IMF World Economic Outlook'}. ${now} and ${now + 1} are IMF projections. Fiscal balance, debt and current account in % of GDP. Click a column to sort; red marks contraction, inflation ≥ 6%, deficits ≥ 5% and debt ≥ 100% of GDP.`}>
+      {world && <div className="kpis">
+        <div className="kpi"><span>World GDP growth {now}</span><b><Big>{num(world.NGDP_RPCH?.[String(now)], 1) + '%'}</Big></b><small>{now + 1}: {num(world.NGDP_RPCH?.[String(now + 1)], 1)}%</small></div>
+        <div className="kpi"><span>World inflation {now}</span><b><Big>{num(world.PCPIPCH?.[String(now)], 1) + '%'}</Big></b><small>{now + 1}: {num(world.PCPIPCH?.[String(now + 1)], 1)}%</small></div>
+        {s.data?.data.ADVEC && <div className="kpi"><span>Advanced economies</span><b><Big>{num(s.data.data.ADVEC.NGDP_RPCH?.[String(now)], 1) + '%'}</Big></b><small>GDP growth {now}</small></div>}
+        {s.data?.data.OEMDC && <div className="kpi"><span>Emerging & developing</span><b><Big>{num(s.data.data.OEMDC.NGDP_RPCH?.[String(now)], 1) + '%'}</Big></b><small>GDP growth {now}</small></div>}
+      </div>}
+      <table className="t long">
+        <thead><tr><th>Economy</th>{cols.map((c) => (
+          <th key={c.key} style={{ cursor: 'pointer', color: sort.key === c.key ? 'var(--text)' : undefined }}
+            onClick={() => setSort((p) => ({ key: c.key, dir: p.key === c.key ? (p.dir === 1 ? -1 : 1) : -1 }))}>{c.label}{sort.key === c.key ? (sort.dir === -1 ? ' ↓' : ' ↑') : ''}</th>
+        ))}</tr></thead>
+        <tbody>{rows.map((r) => (
+          <tr key={r.iso3}><td>{r.name}</td>{cols.map((c) => { const v = val(r.iso3, c); return <td key={c.key} className={v == null ? 'flat' : tone(c, v)}>{v == null ? '—' : c.dp === 0 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1)}</td>; })}</tr>
+        ))}</tbody>
       </table>
     </Panel>
   );

@@ -48,6 +48,8 @@ The app lives in `fintel-project/`. See its README for running it and the source
 
 - BIS policy rates: `stats.bis.org/api/v1/data/WS_CBPOL/D./all?startPeriod=…&detail=dataonly` with
   `Accept: application/vnd.sdmx.data+csv;version=1.0.0`. No CORS (relay `/px/bis`, snapshot `bis.json`). Euro area = XM.
+- IMF WEO: `imf.org/external/datamapper/api/v1/<INDICATOR>` (all countries, all years; `periods` is ignored).
+  No CORS (relay `/px/imf`, snapshot `imf.json`). Aggregates: WEOWORLD, ADVEC, OEMDC, EURO. Includes Taiwan.
 - OECD 10Y government yields on FRED: `IRLTLT01<CC>M156N` (monthly). Live for 29 OECD countries; none for
   BR, CN, IN, ID, TR, CO (404) and RU (stopped 2018).
 - Yahoo indices that don't exist: ^IPSA (Chile), ^COLCAP (use ICOLCAP.CL ETF), ^SPBLPGPT (Peru), ^PX (Prague = 0),

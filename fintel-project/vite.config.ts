@@ -32,6 +32,7 @@ export default defineConfig(({ mode }) => {
     '/px/cnbc': relay('https://search.cnbc.com', '/px/cnbc', { 'User-Agent': BROWSER_UA }),
     '/px/mw': relay('https://feeds.content.dowjones.io', '/px/mw', { 'User-Agent': BROWSER_UA }),
     '/px/xbrl': relay('https://data.sec.gov', '/px/xbrl', { 'User-Agent': secUA }),
+    '/px/imf': relay('https://www.imf.org', '/px/imf', { 'User-Agent': BROWSER_UA }),
     '/px/bis': relay('https://stats.bis.org', '/px/bis', { 'User-Agent': BROWSER_UA }),
   };
   return {

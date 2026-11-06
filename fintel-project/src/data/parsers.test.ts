@@ -92,7 +92,7 @@ describe('store', () => {
   });
 });
 
-import { parseBisPolicy } from './sources';
+import { parseBisPolicy, shapeImf } from './sources';
 describe('parseBisPolicy', () => {
   const csv = ['DATAFLOW,FREQ,REF_AREA,TIME_PERIOD,OBS_VALUE,UNIT_MEASURE',
     'BIS:WS_CBPOL(1.0),D,JP,2025-10-01,0.5,', 'BIS:WS_CBPOL(1.0),D,JP,2026-09-18,1.25,', 'BIS:WS_CBPOL(1.0),D,JP,2026-09-17,1,',
@@ -103,5 +103,13 @@ describe('parseBisPolicy', () => {
   });
   it('skips blanks and leaves unknown history undefined', () => {
     expect(r.GB.v).toBe(3.75); expect(r.GB.prev).toBeUndefined(); expect(r.GB.y1).toBeUndefined();
+  });
+});
+
+describe('shapeImf', () => {
+  it('keeps only the requested years and numeric values, keyed by country then indicator', () => {
+    const r = shapeImf({ NGDP_RPCH: { USA: { '2024': 3, '2025': 2.3, '2026': 2.3, '2030': 1.8 }, CHN: { '2025': null as unknown as number } } }, [2025, 2026], 'WEO (October 2026)');
+    expect(r.data).toEqual({ USA: { NGDP_RPCH: { '2025': 2.3, '2026': 2.3 } } });
+    expect(r.edition).toBe('WEO (October 2026)');
   });
 });

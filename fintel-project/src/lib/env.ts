@@ -9,8 +9,8 @@ export const STATIC = !NODE && import.meta.env.VITE_STATIC === '1';
 const BASE: string = (import.meta.env.BASE_URL as string | undefined) ?? '/';
 
 export const HOST = NODE
-  ? { yahoo: 'https://query1.finance.yahoo.com', fred: 'https://fred.stlouisfed.org', sec: 'https://www.sec.gov', secdata: 'https://data.sec.gov', fed: 'https://www.federalreserve.gov', cnbc: 'https://search.cnbc.com', mw: 'https://feeds.content.dowjones.io', bis: 'https://stats.bis.org' }
-  : { yahoo: '/px/yahoo', fred: '/px/fred', sec: '/px/sec', secdata: '/px/xbrl', fed: '/px/fed', cnbc: '/px/cnbc', mw: '/px/mw', bis: '/px/bis' };
+  ? { yahoo: 'https://query1.finance.yahoo.com', fred: 'https://fred.stlouisfed.org', sec: 'https://www.sec.gov', secdata: 'https://data.sec.gov', fed: 'https://www.federalreserve.gov', cnbc: 'https://search.cnbc.com', mw: 'https://feeds.content.dowjones.io', bis: 'https://stats.bis.org', imf: 'https://www.imf.org' }
+  : { yahoo: '/px/yahoo', fred: '/px/fred', sec: '/px/sec', secdata: '/px/xbrl', fed: '/px/fed', cnbc: '/px/cnbc', mw: '/px/mw', bis: '/px/bis', imf: '/px/imf' };
 
 /** Snapshot files are JSON: { generated: epoch ms, data }. */
 export interface Snap<T> { generated: number; data: T }

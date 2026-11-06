@@ -316,3 +316,50 @@ export const POLICY: SourceDef<Record<string, PolicyRate>> = {
   asOf: STATIC ? snapTime('bis.json') : undefined,
   fetch: () => (STATIC ? snap<Record<string, PolicyRate>>('bis.json') : bisPolicy()),
 };
+
+// ---------------------------------------------------------------- IMF World Economic Outlook (DataMapper API)
+// ~229 economies, actuals plus IMF projections; updated each April and October. No CORS: relay / snapshot.
+export const IMF_INDICATORS: { id: string; label: string; short: string; unit: '%' | '% GDP' | 'USD bn' | 'USD' }[] = [
+  { id: 'NGDP_RPCH', label: 'Real GDP growth', short: 'GDP', unit: '%' },
+  { id: 'PCPIPCH', label: 'Inflation', short: 'CPI', unit: '%' },
+  { id: 'LUR', label: 'Unemployment', short: 'Unemp.', unit: '%' },
+  { id: 'GGXCNL_NGDP', label: 'Fiscal balance', short: 'Fiscal', unit: '% GDP' },
+  { id: 'GGXWDG_NGDP', label: 'Government debt', short: 'Debt', unit: '% GDP' },
+  { id: 'BCA_NGDPD', label: 'Current account', short: 'C/A', unit: '% GDP' },
+  { id: 'NGDPD', label: 'GDP', short: 'GDP $', unit: 'USD bn' },
+  { id: 'NGDPDPC', label: 'GDP per capita', short: 'Per cap.', unit: 'USD' },
+];
+/** { edition, years, data: { ISO3: { indicatorId: { year: value } } } } */
+export interface ImfData { edition: string; years: number[]; data: Record<string, Record<string, Record<string, number>>> }
+export function shapeImf(raw: Record<string, Record<string, Record<string, number | null>>>, years: number[], edition: string): ImfData {
+  const data: ImfData['data'] = {};
+  for (const [ind, byCountry] of Object.entries(raw)) {
+    for (const [iso, series] of Object.entries(byCountry ?? {})) {
+      for (const y of years) {
+        const v = series?.[String(y)];
+        if (typeof v === 'number' && Number.isFinite(v)) ((data[iso] ||= {})[ind] ||= {})[String(y)] = v;
+      }
+    }
+  }
+  return { edition, years, data };
+}
+export async function imfWeo(): Promise<ImfData> {
+  const y = new Date().getFullYear(), years = [y - 2, y - 1, y, y + 1, y + 2];
+  const raw: Record<string, Record<string, Record<string, number | null>>> = {};
+  for (const ind of IMF_INDICATORS) {
+    const j = await getJSON<{ values?: Record<string, Record<string, Record<string, number | null>>> }>(`${HOST.imf}/external/datamapper/api/v1/${ind.id}`, { timeout: 30000 });
+    if (j.values?.[ind.id]) raw[ind.id] = j.values[ind.id];
+  }
+  if (!Object.keys(raw).length) throw new Error('no IMF data returned');
+  let edition = 'World Economic Outlook';
+  try {
+    const meta = await getJSON<{ indicators?: Record<string, { source?: string }> }>(`${HOST.imf}/external/datamapper/api/v1/indicators`, { timeout: 30000 });
+    edition = meta.indicators?.NGDP_RPCH?.source || edition;
+  } catch { /* label only */ }
+  return shapeImf(raw, years, edition);
+}
+export const IMF: SourceDef<ImfData> = {
+  id: 'imf:weo', label: 'IMF outlook', provider: 'IMF WEO', every: 12 * 60 * 60_000,
+  asOf: STATIC ? snapTime('imf.json') : undefined,
+  fetch: () => (STATIC ? snap<ImfData>('imf.json') : imfWeo()),
+};

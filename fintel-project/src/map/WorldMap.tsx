@@ -3,11 +3,11 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useQuotes } from '@/data/yahoo';
 import { useSource } from '@/data/store';
-import { POLICY, WB_INDICATORS, worldBankSource } from '@/data/sources';
+import { IMF, IMF_INDICATORS, POLICY, WB_INDICATORS, worldBankSource, type ImfData } from '@/data/sources';
 import { bondId, policyArea, CHOKEPOINTS, COUNTRIES, type Country } from '@/data/universe';
 import { FRED_MACRO } from '@/data/fred';
 import { big, num, price } from '@/lib/format';
-import { Chg, Panel } from '@/ui/kit';
+import { Chg, Panel, Tabs } from '@/ui/kit';
 import { heat } from '@/ui/theme';
 
 // Keyless dark basemap (CARTO). If a Protomaps key is set in .env (VITE_PROTOMAPS_KEY), its style is used instead.
@@ -30,6 +30,8 @@ export function WorldMap() {
   const wb = useSource(WB);
   const fred = useSource(FRED_MACRO);
   const pol = useSource(POLICY);
+  const imf = useSource(IMF);
+  const [fundTab, setFundTab] = useState<'imf' | 'wb'>('imf');
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -88,7 +90,7 @@ export function WorldMap() {
   const pr = sel ? pol.data?.[policyArea(sel) ?? ''] : undefined;
   const bondPrev = bs && bs.length > 12 ? bs[bs.length - 13] : undefined;
   return (
-    <Panel id="p-map" title="Global markets map" src={[q, wb, fred, pol]} span="c8 mappanel" hasData>
+    <Panel id="p-map" title="Global markets map" src={[q, wb, fred, pol, imf]} span="c8 mappanel" hasData>
       <div className="mapwrap">
         <div ref={box} className="mapcanvas" />
         {mapErr && <div className="maperr" role="status">{mapErr}</div>}
@@ -112,19 +114,40 @@ export function WorldMap() {
                 {sel.bond && <tr title="Monthly average long-term (10-year) government bond yield, OECD via FRED. Change is versus a year earlier."><td>10Y gov't yield<br /><small className="faint">{bond ? new Date(bond.d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'OECD'}</small></td><td>{bond ? bond.v.toFixed(2) + '%' : '—'}</td><td>{bond && bondPrev ? <Chg v={(bond.v - bondPrev.v) * 100} dp={0} suffix="bp" invert /> : ''}</td></tr>}
               </tbody>
             </table>
-            <div className="faint" style={{ fontSize: 12, margin: '14px 0 2px' }}>Fundamentals · World Bank</div>
-            {sel.iso3 === 'TWN' ? <p className="dim" style={{ fontSize: 11 }}>The World Bank doesn't publish data for Taiwan.</p> : (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '14px 0 4px' }}>
+              <span className="faint" style={{ fontSize: 12 }}>Fundamentals</span>
+              <Tabs small value={fundTab} onChange={setFundTab} options={[['imf', 'IMF outlook'], ['wb', 'World Bank']]} />
+            </div>
+            {fundTab === 'imf' ? <ImfCard d={imf.data} iso3={sel.iso3} /> : sel.iso3 === 'TWN' ? <p className="dim" style={{ fontSize: 11 }}>The World Bank doesn't publish data for Taiwan.</p> : (<>
               <table className="t"><tbody>
                 {WB_INDICATORS.map((ind) => {
                   const v = fund?.[ind.id];
                   return <tr key={ind.id}><td>{ind.label}</td><td>{v ? (ind.unit === 'USD' ? '$' + big(v.v) : num(v.v, 1) + (ind.unit.startsWith('%') ? '%' : '')) : '—'}</td><td className="faint">{v?.year ?? ''}</td></tr>;
                 })}
               </tbody></table>
-            )}
-            <p className="faint" style={{ fontSize: 10.5, marginTop: 6 }}>Annual figures; the year shown is the latest available.</p>
+              <p className="faint" style={{ fontSize: 10.5, marginTop: 6 }}>Annual figures; the year shown is the latest available.</p>
+            </>)}
           </aside>
         )}
       </div>
     </Panel>
   );
+}
+
+/** IMF World Economic Outlook for one country: last year, this year and next (IMF estimates/projections). */
+function ImfCard({ d, iso3 }: { d?: ImfData; iso3: string }) {
+  if (!d) return <p className="dim" style={{ fontSize: 11 }}>Loading the IMF outlook…</p>;
+  const c = d.data[iso3];
+  if (!c) return <p className="dim" style={{ fontSize: 11 }}>The IMF doesn't publish an outlook for this economy.</p>;
+  const now = new Date().getFullYear(), ys = [now - 1, now, now + 1].map(String);
+  const fmt = (v: number | undefined, unit: string) => v == null ? '—' : unit === 'USD bn' ? '$' + big(v * 1e9) : unit === 'USD' ? '$' + big(v) : num(v, 1) + '%';
+  return <>
+    <table className="t">
+      <thead><tr><th></th>{ys.map((y) => <th key={y}>{y}{Number(y) >= now ? 'f' : ''}</th>)}</tr></thead>
+      <tbody>{IMF_INDICATORS.filter((i) => i.id !== 'NGDPDPC').map((ind) => c[ind.id] && (
+        <tr key={ind.id}><td>{ind.label}</td>{ys.map((y) => <td key={y}>{fmt(c[ind.id]?.[y], ind.unit)}</td>)}</tr>
+      ))}</tbody>
+    </table>
+    <p className="faint" style={{ fontSize: 10.5, marginTop: 6 }}>{d.edition}. f = IMF forecast; earlier years can still be estimates.</p>
+  </>;
 }
