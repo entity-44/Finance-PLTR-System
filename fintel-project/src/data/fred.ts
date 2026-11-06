@@ -1,4 +1,5 @@
 import { getJSON, getText, pool } from '@/lib/http';
+import { COUNTRIES, bondId } from './universe';
 import { isoDaysAgo } from '@/lib/format';
 import { HOST, NODE, snap, snapTime, STATIC } from '@/lib/env';
 import type { SourceDef } from './store';
@@ -44,7 +45,9 @@ export async function fredMany(ids: string[], sinceDays: number): Promise<Record
 
 export const CURVE: [string, string][] = [['DGS1MO', '1M'], ['DGS3MO', '3M'], ['DGS6MO', '6M'], ['DGS1', '1Y'], ['DGS2', '2Y'], ['DGS3', '3Y'], ['DGS5', '5Y'], ['DGS7', '7Y'], ['DGS10', '10Y'], ['DGS20', '20Y'], ['DGS30', '30Y']];
 export const DAILY_IDS = [...CURVE.map((c) => c[0]), 'DFEDTARU', 'DFEDTARL', 'EFFR', 'SOFR', 'ECBDFR', 'IUDSOIA', 'T10Y2Y', 'T10Y3M', 'T10YIE', 'DFII10', 'BAMLH0A0HYM2', 'BAMLC0A0CM', 'NFCI', 'STLFSI4', 'WALCL', 'RRPONTSYD', 'WTREGEN', 'MORTGAGE30US', 'DTWEXBGS'];
-export const MACRO_IDS = ['CPIAUCSL', 'CPILFESL', 'PCEPILFE', 'UNRATE', 'PAYEMS', 'ICSA', 'A191RL1Q225SBEA', 'RSAFS', 'INDPRO', 'HOUST', 'UMCSENT', 'M2SL'];
+export const MACRO_IDS = ['CPIAUCSL', 'CPILFESL', 'PCEPILFE', 'UNRATE', 'PAYEMS', 'ICSA', 'A191RL1Q225SBEA', 'RSAFS', 'INDPRO', 'HOUST', 'UMCSENT', 'M2SL',
+  // monthly 10-year government yields (OECD, via FRED) for the map
+  ...COUNTRIES.map(bondId).filter((x): x is string => !!x)];
 export const FRED_SINCE = { daily: 400, macro: 1150 };
 
 function fredSource(id: string, label: string, part: 'daily' | 'macro', ids: string[], every: number): SourceDef<Record<string, Series>> {

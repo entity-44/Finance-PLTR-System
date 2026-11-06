@@ -18,14 +18,13 @@ import { PRESETS, Slot, useLayout, type Span } from '@/ui/layout';
 // Exchange hours (local time) for the clocks. Weekends closed; holidays not modelled.
 // The usual trading-desk set: the three big hubs (New York, London, Tokyo) plus Frankfurt, Hong Kong and
 // Sydney, which opens the global trading day. Regular cash-session hours (lunch breaks ignored).
-// `minor` clocks are hidden first when the top bar runs out of room.
-const CLOCKS: { label: string; city: string; tz: string; open: [number, number]; close: [number, number]; minor?: boolean }[] = [
+const CLOCKS: { label: string; city: string; tz: string; open: [number, number]; close: [number, number] }[] = [
   { label: 'NYC', city: 'New York (NYSE)', tz: 'America/New_York', open: [9, 30], close: [16, 0] },
   { label: 'LDN', city: 'London (LSE)', tz: 'Europe/London', open: [8, 0], close: [16, 30] },
-  { label: 'FRA', city: 'Frankfurt (Xetra)', tz: 'Europe/Berlin', open: [9, 0], close: [17, 30], minor: true },
+  { label: 'FRA', city: 'Frankfurt (Xetra)', tz: 'Europe/Berlin', open: [9, 0], close: [17, 30] },
   { label: 'TYO', city: 'Tokyo (TSE)', tz: 'Asia/Tokyo', open: [9, 0], close: [15, 30] },
-  { label: 'HKG', city: 'Hong Kong (HKEX)', tz: 'Asia/Hong_Kong', open: [9, 30], close: [16, 0], minor: true },
-  { label: 'SYD', city: 'Sydney (ASX)', tz: 'Australia/Sydney', open: [10, 0], close: [16, 0], minor: true },
+  { label: 'HKG', city: 'Hong Kong (HKEX)', tz: 'Asia/Hong_Kong', open: [9, 30], close: [16, 0] },
+  { label: 'SYD', city: 'Sydney (ASX)', tz: 'Australia/Sydney', open: [10, 0], close: [16, 0] },
 ];
 
 function Clocks() {
@@ -37,7 +36,7 @@ function Clocks() {
         const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: c.tz, hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short' }).formatToParts(now).map((p) => [p.type, p.value]));
         const mins = (Number(parts.hour) % 24) * 60 + Number(parts.minute);
         const open = !['Sat', 'Sun'].includes(parts.weekday) && mins >= c.open[0] * 60 + c.open[1] && mins < c.close[0] * 60 + c.close[1];
-        return <span key={c.label} className={(open ? 'open' : '') + (c.minor ? ' minor' : '')} title={`${c.city}: ${open ? 'open (regular session)' : 'closed'}`}>{c.label}<b>{parts.hour}:{parts.minute}</b></span>;
+        return <span key={c.label} className={open ? 'open' : ''} title={`${c.city}: ${open ? 'open (regular session)' : 'closed'}`}>{c.label}<b>{parts.hour}:{parts.minute}</b></span>;
       })}
     </div>
   );
@@ -141,7 +140,6 @@ export default function App() {
       <header className="top">
         <div className="bar">
           <div className="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="13" width="4" height="8" rx="2" fill="#e8e8e8" opacity=".45" /><rect x="10" y="8" width="4" height="13" rx="2" fill="#e8e8e8" opacity=".7" /><rect x="17" y="3" width="4" height="18" rx="2" fill="#e8e8e8" /></svg><span>Parallax</span><em>Terminal</em></div>
-          <Clocks />
           <div className="sp" />
           <CommandBar onTicker={chartIt} onCompany={openCompany} />
           <select className="in layout-pick" value={PRESETS.some((p) => p.name === L.layout.name) ? L.layout.name : 'Custom'} aria-label="Layout"
@@ -152,7 +150,7 @@ export default function App() {
           <button className={'btn edit-btn' + (editing ? ' pri' : '')} onClick={() => setEditing((v) => !v)}>{editing ? 'Done' : 'Edit layout'}</button>
           <Health onClick={() => setSettings(true)} />
         </div>
-        <Tape />
+        <div className="tape-row"><Clocks /><Tape /></div>
       </header>
       {editing && (
         <div className="tray">

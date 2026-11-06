@@ -4,7 +4,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useQuotes } from '@/data/yahoo';
 import { useSource } from '@/data/store';
 import { WB_INDICATORS, worldBankSource } from '@/data/sources';
-import { CHOKEPOINTS, COUNTRIES, type Country } from '@/data/universe';
+import { bondId, CHOKEPOINTS, COUNTRIES, type Country } from '@/data/universe';
+import { FRED_MACRO } from '@/data/fred';
 import { big, num, price } from '@/lib/format';
 import { Chg, Panel } from '@/ui/kit';
 import { heat } from '@/ui/theme';
@@ -27,6 +28,7 @@ export function WorldMap() {
   const symbols = useMemo(() => COUNTRIES.flatMap((c) => [c.index?.[0], c.fx?.[0]]).filter(Boolean) as string[], []);
   const q = useQuotes(symbols);
   const wb = useSource(WB);
+  const fred = useSource(FRED_MACRO);
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -80,8 +82,11 @@ export function WorldMap() {
   const iq = sel?.index ? q.data?.[sel.index[0]] : undefined;
   const fq = sel?.fx ? q.data?.[sel.fx[0]] : undefined;
   const fund = sel ? wb.data?.[sel.iso3] : undefined;
+  const bs = sel && bondId(sel) ? fred.data?.[bondId(sel)!] : undefined;
+  const bond = bs?.length ? bs[bs.length - 1] : undefined;
+  const bondPrev = bs && bs.length > 12 ? bs[bs.length - 13] : undefined;
   return (
-    <Panel id="p-map" title="Global markets map" src={[q, wb]} span="c8 mappanel" hasData>
+    <Panel id="p-map" title="Global markets map" src={[q, wb, fred]} span="c8 mappanel" hasData>
       <div className="mapwrap">
         <div ref={box} className="mapcanvas" />
         {mapErr && <div className="maperr" role="status">{mapErr}</div>}
@@ -101,6 +106,7 @@ export function WorldMap() {
               <tbody>
                 {sel.index && <tr><td>{sel.index[1]}</td><td>{iq ? price(iq.price) : '—'}</td><td><Chg v={iq?.changePct} /></td></tr>}
                 {sel.fx && <tr><td>{sel.fx[1]}</td><td>{fq ? price(fq.price) : '—'}</td><td><Chg v={fq?.changePct} /></td></tr>}
+                {sel.bond && <tr title="Monthly average long-term (10-year) government bond yield, OECD via FRED. Change is versus a year earlier."><td>10Y gov't yield<br /><small className="faint">{bond ? new Date(bond.d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'OECD'}</small></td><td>{bond ? bond.v.toFixed(2) + '%' : '—'}</td><td>{bond && bondPrev ? <Chg v={(bond.v - bondPrev.v) * 100} dp={0} suffix="bp" invert /> : ''}</td></tr>}
               </tbody>
             </table>
             <div className="faint" style={{ fontSize: 12, margin: '14px 0 2px' }}>Fundamentals · World Bank</div>
