@@ -149,7 +149,7 @@ async function main() {
       }
       if (!done && !kept) throw new Error(`all ${failed} failed`);
       return `${done} refreshed, ${kept} cached, ${failed} failed`;
-    });
+    }, 10 * 60_000);
   }
 
   // the network is rebuilt from whatever company files exist
