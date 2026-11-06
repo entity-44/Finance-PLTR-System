@@ -118,7 +118,7 @@ export function WorldMap() {
               <span className="faint" style={{ fontSize: 12 }}>Fundamentals</span>
               <Tabs small value={fundTab} onChange={setFundTab} options={[['imf', 'IMF outlook'], ['wb', 'World Bank']]} />
             </div>
-            {fundTab === 'imf' ? <ImfCard d={imf.data} iso3={sel.iso3} /> : sel.iso3 === 'TWN' ? <p className="dim" style={{ fontSize: 11 }}>The World Bank doesn't publish data for Taiwan.</p> : (<>
+            {fundTab === 'imf' ? <ImfCard d={imf.data} iso3={sel.iso3} err={imf.status === 'error' ? imf.error ?? 'unavailable' : undefined} /> : sel.iso3 === 'TWN' ? <p className="dim" style={{ fontSize: 11 }}>The World Bank doesn't publish data for Taiwan.</p> : (<>
               <table className="t"><tbody>
                 {WB_INDICATORS.map((ind) => {
                   const v = fund?.[ind.id];
@@ -135,8 +135,8 @@ export function WorldMap() {
 }
 
 /** IMF World Economic Outlook for one country: last year, this year and next (IMF estimates/projections). */
-function ImfCard({ d, iso3 }: { d?: ImfData; iso3: string }) {
-  if (!d) return <p className="dim" style={{ fontSize: 11 }}>Loading the IMF outlook…</p>;
+function ImfCard({ d, iso3, err }: { d?: ImfData; iso3: string; err?: string }) {
+  if (!d) return <p className="dim" style={{ fontSize: 11 }}>{err ? `IMF outlook unavailable right now (${err}).` : 'Loading the IMF outlook…'}</p>;
   const c = d.data[iso3];
   if (!c) return <p className="dim" style={{ fontSize: 11 }}>The IMF doesn't publish an outlook for this economy.</p>;
   const now = new Date().getFullYear(), ys = [now - 1, now, now + 1].map(String);

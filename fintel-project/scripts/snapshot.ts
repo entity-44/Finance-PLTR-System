@@ -18,13 +18,17 @@ const want = (k: string) => !only.length || only.includes(k);
 const log = (...a: unknown[]) => console.log(new Date().toISOString().slice(11, 19), ...a);
 const report: Record<string, string> = {};
 
-async function save(name: string, data: unknown) {
+async function save(name: string, data: unknown, generated = Date.now()) {
   const file = path.join(OUT, name);
   await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, JSON.stringify({ generated: Date.now(), data }));
+  await writeFile(file, JSON.stringify({ generated, data }));
 }
 const DAY_MS = Number(process.env.COMPANIES_MAX_AGE_H ?? 20) * 3600_000;
 /** True if a snapshot file exists and is younger than the daily refresh age. */
+async function readSnap<T>(f: string): Promise<{ generated: number; data: T } | undefined> {
+  try { return JSON.parse(await readFile(path.join(OUT, f), 'utf8')) as { generated: number; data: T }; } catch { return undefined; }
+}
+const read = async <T>(f: string): Promise<T | undefined> => (await readSnap<T>(f))?.data;
 async function fresh(name: string) {
   try { return Date.now() - (JSON.parse(await readFile(path.join(OUT, name), 'utf8')) as { generated: number }).generated < DAY_MS; } catch { return false; }
 }
@@ -75,7 +79,15 @@ async function main() {
     // Longer histories change slowly: rebuild them once a day (the workflow caches them between runs).
     for (const [file, range, interval] of [[SNAP_FILES['1y'], '1y', '1d'], [SNAP_FILES['5y'], '5y', '1wk']] as const) {
       await step('history ' + range, async () => {
-        if (await fresh(file)) return 'cached';
+        if (await fresh(file)) {
+          // cached today: only fetch symbols added since (e.g. new countries), and merge them in
+          const old = await readSnap<Record<string, unknown>>(file), have = old?.data;
+          const missing = SYMBOLS.filter((x) => !have?.[x]);
+          if (!old || !have || !missing.length) return 'cached';
+          const add = await chartQuotes(missing, range, interval);
+          await save(file, { ...have, ...add }, old.generated); // keep the original date so the daily rebuild still happens
+          return `cached + ${Object.keys(add).length}/${missing.length} new symbols`;
+        }
         const q = await chartQuotes(SYMBOLS, range, interval);
         if (Object.keys(q).length < SYMBOLS.length * 0.5) throw new Error(`only ${Object.keys(q).length} symbols`);
         await save(file, q);
@@ -133,7 +145,6 @@ async function main() {
   if (want('brief') && process.env.GROQ_API_KEY) {
     await step('brief', async () => {
       try { const old = JSON.parse(await readFile(path.join(OUT, 'brief.json'), 'utf8')) as { generated: number }; if (Date.now() - old.generated < 55 * 60_000) return 'cached (hourly)'; } catch { /* first one */ }
-      const read = async <T>(f: string): Promise<T | undefined> => { try { return (JSON.parse(await readFile(path.join(OUT, f), 'utf8')) as { data: T }).data; } catch { return undefined; } };
       const q = await read<Record<string, import('../src/data/yahoo').Quote>>(SNAP_FILES['1d']);
       if (!q) throw new Error('no quotes to write from');
       const fred = await read<Record<'daily' | 'macro', Record<string, import('../src/data/fred').Series>>>('fred.json');
