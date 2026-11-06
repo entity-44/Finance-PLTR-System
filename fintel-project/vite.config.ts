@@ -23,7 +23,7 @@ function relay(target: string, prefix: string, headers: Record<string, string> =
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   // SEC asks automated clients to identify themselves with a contact address.
-  const secUA = env.SEC_USER_AGENT || 'FINTEL Command research dashboard (set SEC_USER_AGENT in .env)';
+  const secUA = env.SEC_USER_AGENT || 'Parallax research terminal (set SEC_USER_AGENT in .env)';
   const proxy: Record<string, ProxyOptions> = {
     '/px/yahoo': relay('https://query1.finance.yahoo.com', '/px/yahoo', { 'User-Agent': BROWSER_UA }),
     '/px/fred': relay('https://fred.stlouisfed.org', '/px/fred', { 'User-Agent': BROWSER_UA }),

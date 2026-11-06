@@ -1,4 +1,4 @@
-# FINTEL COMMAND
+# Parallax
 
 An open-source financial-intelligence terminal in the spirit of Bloomberg and Palantir: global markets, rates,
 macro, positioning, company fundamentals, insider networks, filings and news on one screen.
@@ -34,7 +34,7 @@ The website is built by `.github/workflows/deploy.yml`: on every push and about 
 `scripts/snapshot.ts` (fetches Yahoo, FRED, SEC and news into `public/snap/`), builds with `VITE_STATIC=1`
 and deploys to Pages. Company files (financials + Form 4) are rebuilt once a day and carried between runs in
 the Actions cache. One-time setup: repo **Settings → Pages → Source: GitHub Actions**, and a repository
-secret **`SEC_USER_AGENT`** (a name and contact email, e.g. `FINTEL Command contact@example.com`) because the
+secret **`SEC_USER_AGENT`** (a name and contact email, e.g. `Parallax contact@example.com`) because the
 SEC asks automated tools to identify themselves.
 
 ## Using it

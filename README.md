@@ -1,4 +1,4 @@
-# fintel-command
+# Parallax
 
-**FINTEL COMMAND**, a live financial-intelligence terminal. The app is in [`fintel-project/`](fintel-project/);
+**Parallax**, an open-source financial-intelligence terminal: markets, macro, filings and insider networks seen from every angle on one screen. The app is in [`fintel-project/`](fintel-project/);
 start there for setup, panels and data sources.

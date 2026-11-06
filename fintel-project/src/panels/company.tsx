@@ -82,7 +82,7 @@ export function CompanyPage({ ticker, onClose, onTicker }: { ticker: string; onC
   const x = q.data?.[ticker];
   const c = co.data;
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); }; addEventListener('keydown', k); return () => removeEventListener('keydown', k); }, [onClose]);
-  useEffect(() => { document.title = `${ticker} · FINTEL`; return () => { document.title = 'FINTEL COMMAND'; }; }, [ticker]);
+  useEffect(() => { document.title = `${ticker} · Parallax`; return () => { document.title = 'Parallax'; }; }, [ticker]);
   const links = useMemo(() => (net.data?.people ?? []).filter((p) => p.links.length > 1 && p.links.some((l) => l.ticker === ticker)), [net.data, ticker]);
   const buys = (c?.insiders ?? []).filter((t) => t.code === 'P'), sells = (c?.insiders ?? []).filter((t) => t.code === 'S');
   const val = (l: typeof buys) => l.reduce((s, t) => s + (t.shares ?? 0) * (t.price ?? 0), 0);

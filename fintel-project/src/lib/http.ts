@@ -9,7 +9,7 @@ const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 function nodeHeaders(url: string): Record<string, string> {
   if (typeof window !== 'undefined') return {};
   const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
-  if (/sec\.gov/.test(url)) return { 'User-Agent': env.SEC_USER_AGENT || 'FINTEL Command open-source terminal (github.com/ldiazbusquets/fintel-command)', 'Accept-Encoding': 'identity' };
+  if (/sec\.gov/.test(url)) return { 'User-Agent': env.SEC_USER_AGENT || 'Parallax open-source terminal (github.com/ldiazbusquets/fintel-command)', 'Accept-Encoding': 'identity' };
   return { 'User-Agent': BROWSER_UA, Accept: 'application/json, text/plain, */*', 'Accept-Language': 'en-US,en;q=0.9', Referer: 'https://finance.yahoo.com/' };
 }
 
