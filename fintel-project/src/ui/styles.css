@@ -404,3 +404,6 @@ svg.chart text { font: 300 10.5px var(--mono); fill: #6a6a6a; }
 select.layout-pick { width: auto; }
 .maplibregl-ctrl-attrib { background: var(--glass) !important; backdrop-filter: blur(12px); border-radius: 999px !important; padding: 0 8px !important; font: 300 10px var(--sans) !important; }
 .maplibregl-ctrl-attrib-button { filter: invert(1) opacity(.6); background-color: transparent !important; }
+.kpi b .frac, .frac { display: inline; font: inherit; letter-spacing: inherit; text-transform: none; white-space: nowrap; overflow: visible; color: #6e6e6e; }
+.kpi b.up .frac, .kpi b.down .frac, .up .frac, .down .frac { color: inherit; opacity: .55; }
+.kpi b span:not(.frac) { display: inline; font: inherit; color: inherit; letter-spacing: inherit; }
