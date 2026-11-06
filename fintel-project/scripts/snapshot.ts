@@ -89,6 +89,8 @@ async function main() {
 
   if (want('fred')) {
     await step('fred', async () => {
+      // Without an API key, FRED's public CSV tends to time out from cloud runners: check once, then skip fast.
+      if (!process.env.FRED_API_KEY) await getText('https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10&cosd=2026-01-01', { timeout: 15000 }).catch(() => { throw new Error('FRED unreachable without FRED_API_KEY secret'); });
       const [daily, macro] = await Promise.all([fredMany(DAILY_IDS, FRED_SINCE.daily), fredMany(MACRO_IDS, FRED_SINCE.macro)]);
       const n = Object.keys(daily).length + Object.keys(macro).length;
       if (n < (DAILY_IDS.length + MACRO_IDS.length) * 0.6) throw new Error(`only ${n} series`);
