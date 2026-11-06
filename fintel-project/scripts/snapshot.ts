@@ -27,9 +27,28 @@ const DAY_MS = Number(process.env.COMPANIES_MAX_AGE_H ?? 20) * 3600_000;
 async function fresh(name: string) {
   try { return Date.now() - (JSON.parse(await readFile(path.join(OUT, name), 'utf8')) as { generated: number }).generated < DAY_MS; } catch { return false; }
 }
-async function step(name: string, fn: () => Promise<string>) {
-  try { const msg = await fn(); report[name] = 'ok · ' + msg; log('✓', name, msg); }
-  catch (e) { report[name] = 'failed · ' + (e as Error).message; log('✗', name, (e as Error).message); }
+/** Run one step with a hard time limit, so a hanging source can never stall the whole deploy. */
+async function step(name: string, fn: () => Promise<string>, limitMs = 4 * 60_000) {
+  const t0 = Date.now();
+  try {
+    const msg = await Promise.race([fn(), new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`gave up after ${limitMs / 1000}s`)), limitMs))]);
+    report[name] = 'ok · ' + msg; log('✓', name, msg, `(${((Date.now() - t0) / 1000).toFixed(0)}s)`);
+  } catch (e) { report[name] = 'failed · ' + (e as Error).message; log('✗', name, (e as Error).message, `(${((Date.now() - t0) / 1000).toFixed(0)}s)`); }
+}
+
+/** Quick reachability check of each host, printed first so a broken source is obvious in the log. */
+async function probe() {
+  const targets: [string, string][] = [
+    ['yahoo chart', 'https://query1.finance.yahoo.com/v8/finance/chart/SPY?range=1d&interval=5m'],
+    ['yahoo chart (query2)', 'https://query2.finance.yahoo.com/v8/finance/chart/SPY?range=1d&interval=5m'],
+    ['fred csv', 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10&cosd=2026-01-01'],
+    ['sec', 'https://www.sec.gov/files/company_tickers.json'],
+  ];
+  for (const [label, url] of targets) {
+    const t0 = Date.now();
+    try { const r = await fetch(url, { headers: { 'User-Agent': /sec\.gov/.test(url) ? process.env.SEC_USER_AGENT || 'probe' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36' }, signal: AbortSignal.timeout(15000) }); const body = await r.text(); log('probe', label, r.status, `${body.length}B`, `${Date.now() - t0}ms`); }
+    catch (e) { log('probe', label, 'ERROR', (e as Error).message, `${Date.now() - t0}ms`); }
+  }
 }
 
 export const SYMBOLS = [...new Set([
@@ -42,6 +61,7 @@ export const COMPANIES = [...new Set([...HEATMAP.flatMap((g) => g.items), ...DEF
 
 async function main() {
   await mkdir(OUT, { recursive: true });
+  await probe();
 
   if (want('quotes')) {
     await step('quotes', async () => {

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { chunk, getJSON, pool } from '@/lib/http';
-import { HOST, snap, snapTime, STATIC } from '@/lib/env';
+import { HOST, NODE, snap, snapTime, STATIC } from '@/lib/env';
 import { run, useSource, type SourceDef } from './store';
 
 // Yahoo Finance's public chart endpoints (no key). Dev: through /px/yahoo. Website: snapshot files.
@@ -129,12 +129,13 @@ export async function chartQuotes(symbols: string[], range: string, interval: st
     if (limited >= 6) throw new Error(`Yahoo rate-limited this server (${Object.keys(out).length}/${symbols.length} symbols fetched)`);
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const j = await getJSON<ChartResponse>(`${HOST.yahoo}/v8/finance/chart/${encodeURIComponent(s)}?range=${range}&interval=${interval}&includePrePost=false`, { timeout: 20000 });
+        const j = await getJSON<ChartResponse>(`${HOST.yahoo}/v8/finance/chart/${encodeURIComponent(s)}?range=${range}&interval=${interval}&includePrePost=false`, { timeout: 10000 });
         const r = j.chart?.result?.[0];
         if (r) Object.assign(out, parseSpark({ spark: { error: null, result: [{ symbol: s, response: [r] }] } } as SparkResponse, range === '1d', true));
         limited = 0;
         break;
       } catch (e) {
+        if (NODE && Object.keys(out).length === 0 && symbols.indexOf(s) < 3) console.log('  yahoo', s, String(e));
         if (!/429/.test(String(e))) break;
         if (attempt === 2) limited++;
         await new Promise((res) => setTimeout(res, 2000 * (attempt + 1)));
