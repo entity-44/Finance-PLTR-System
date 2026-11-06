@@ -4,12 +4,13 @@ export class HttpError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
-const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
+const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 /** In Node (the snapshot job) identify ourselves: SEC wants a contact; other hosts get a browser UA. */
 function nodeHeaders(url: string): Record<string, string> {
   if (typeof window !== 'undefined') return {};
   const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
-  return { 'User-Agent': /sec\.gov/.test(url) ? env.SEC_USER_AGENT || 'FINTEL Command open-source terminal (github.com/entity-44/Finance-PLTR-System)' : BROWSER_UA };
+  if (/sec\.gov/.test(url)) return { 'User-Agent': env.SEC_USER_AGENT || 'FINTEL Command open-source terminal (github.com/ldiazbusquets/Finance-PLTR-System)', 'Accept-Encoding': 'identity' };
+  return { 'User-Agent': BROWSER_UA, Accept: 'application/json, text/plain, */*', 'Accept-Language': 'en-US,en;q=0.9', Referer: 'https://finance.yahoo.com/' };
 }
 
 export async function getText(url: string, init: RequestInit & { timeout?: number } = {}): Promise<string> {

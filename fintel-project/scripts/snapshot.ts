@@ -39,14 +39,15 @@ async function step(name: string, fn: () => Promise<string>, limitMs = 4 * 60_00
 /** Quick reachability check of each host, printed first so a broken source is obvious in the log. */
 async function probe() {
   const targets: [string, string][] = [
-    ['yahoo chart', 'https://query1.finance.yahoo.com/v8/finance/chart/SPY?range=1d&interval=5m'],
-    ['yahoo chart (query2)', 'https://query2.finance.yahoo.com/v8/finance/chart/SPY?range=1d&interval=5m'],
+    ['yahoo SPY', 'https://query1.finance.yahoo.com/v8/finance/chart/SPY?range=1d&interval=5m'],
+    ['yahoo ES=F', 'https://query2.finance.yahoo.com/v8/finance/chart/ES%3DF?range=1d&interval=5m'],
+    ['yahoo ^VIX', 'https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?range=1d&interval=5m'],
     ['fred csv', 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10&cosd=2026-01-01'],
     ['sec', 'https://www.sec.gov/files/company_tickers.json'],
   ];
   for (const [label, url] of targets) {
     const t0 = Date.now();
-    try { const r = await fetch(url, { headers: { 'User-Agent': /sec\.gov/.test(url) ? process.env.SEC_USER_AGENT || 'probe' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36' }, signal: AbortSignal.timeout(15000) }); const body = await r.text(); log('probe', label, r.status, `${body.length}B`, `${Date.now() - t0}ms`); }
+    try { const body = await getText(url, { timeout: 15000 }); log('probe', label, 'ok', `${body.length}B`, `${Date.now() - t0}ms`); }
     catch (e) { log('probe', label, 'ERROR', (e as Error).message, `${Date.now() - t0}ms`); }
   }
 }

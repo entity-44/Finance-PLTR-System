@@ -122,23 +122,25 @@ export async function chart(symbol: string, range: string, interval: string): Pr
 export const chartAsOf = (range: string) => (STATIC ? snapTime(range === '1d' ? SNAP_FILES['1d'] : range === '5y' ? SNAP_FILES['5y'] : SNAP_FILES['1y']) : undefined);
 
 /** One symbol at a time via the chart endpoint (what works from cloud servers), with backoff on 429. */
-export async function chartQuotes(symbols: string[], range: string, interval: string, gapMs = 250): Promise<Record<string, Quote>> {
+export async function chartQuotes(symbols: string[], range: string, interval: string, gapMs = 600): Promise<Record<string, Quote>> {
   const out: Record<string, Quote> = {};
-  let limited = 0; // consecutive symbols that stayed rate-limited
+  let limited = 0, n = 0; // consecutive symbols that stayed rate-limited
   for (const s of symbols) {
     if (limited >= 6) throw new Error(`Yahoo rate-limited this server (${Object.keys(out).length}/${symbols.length} symbols fetched)`);
     for (let attempt = 0; attempt < 3; attempt++) {
+      // alternate Yahoo's two API hosts (Node only; the browser goes through the relay)
+      const host = NODE ? `https://query${(n++ % 2) + 1}.finance.yahoo.com` : HOST.yahoo;
       try {
-        const j = await getJSON<ChartResponse>(`${HOST.yahoo}/v8/finance/chart/${encodeURIComponent(s)}?range=${range}&interval=${interval}&includePrePost=false`, { timeout: 10000 });
+        const j = await getJSON<ChartResponse>(`${host}/v8/finance/chart/${encodeURIComponent(s)}?range=${range}&interval=${interval}`, { timeout: 10000 });
         const r = j.chart?.result?.[0];
         if (r) Object.assign(out, parseSpark({ spark: { error: null, result: [{ symbol: s, response: [r] }] } } as SparkResponse, range === '1d', true));
         limited = 0;
         break;
       } catch (e) {
-        if (NODE && Object.keys(out).length === 0 && symbols.indexOf(s) < 3) console.log('  yahoo', s, String(e));
+        if (NODE && Object.keys(out).length === 0 && symbols.indexOf(s) < 3) console.log('  yahoo', s, host, String(e));
         if (!/429/.test(String(e))) break;
         if (attempt === 2) limited++;
-        await new Promise((res) => setTimeout(res, 2000 * (attempt + 1)));
+        await new Promise((res) => setTimeout(res, 8000 * (attempt + 1)));
       }
     }
     await new Promise((res) => setTimeout(res, gapMs));
