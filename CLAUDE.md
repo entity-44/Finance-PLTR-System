@@ -48,7 +48,13 @@ The app lives in `fintel-project/`. See its README for running it and the source
 - Layout (`src/ui/layout.tsx`): panel registry lives in App.tsx (`PANELS`), presets in layout.tsx; each preset
   row should sum to 12.
 
+## Look (v6, from Luis's Vexto reference)
+- Charcoal `#0c0c0c` page, 22px rounded gradient cards with no header rules, sentence-case titles with a faint ↗.
+- Outfit for UI text, Inter Tight (light, tabular) for numbers; `<Big>` dims the decimals of display numbers.
+- Pills for tabs/buttons; dashed grids; LineChart marks the window high (white) and low (warm dot).
+- One warm accent `#ef6f3c`, used sparingly (lows, focus, active command). Luis dislikes yellow/amber: don't drift toward it.
+- Map: Esri World Imagery (desaturated) by default with a Streets (CARTO) toggle; overlays are glass (`--glass`).
+
 ## Ideas not built yet
-- Aesthetic pass (Luis is sending a reference).
 - Earnings-season beat rate across a full season (needs a longer Finnhub window).
 - Institutional holders (13F) and activist stakes (13D/G) as extra edges in the link view.
