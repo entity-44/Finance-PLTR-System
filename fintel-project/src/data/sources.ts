@@ -279,3 +279,40 @@ export async function groqBrief(prompt: string, key = getKey('groq')): Promise<s
   });
   return res.choices?.[0]?.message?.content?.trim() || 'No text returned.';
 }
+
+// ---------------------------------------------------------------- central bank policy rates (BIS)
+// BIS "Central bank policy rates" dataset (WS_CBPOL), daily, ~40 economies; euro area is XM.
+// No CORS, so dev goes through /px/bis and the website reads the snapshot.
+export interface PolicyRate { area: string; v: number; d: string; prev?: number; changed?: string; y1?: number }
+export function parseBisPolicy(csv: string, yearAgo = isoDaysAgo(365)): Record<string, PolicyRate> {
+  const lines = csv.trim().split(/\r?\n/);
+  const head = lines[0]?.split(',') ?? [];
+  const ia = head.indexOf('REF_AREA'), it = head.indexOf('TIME_PERIOD'), iv = head.indexOf('OBS_VALUE');
+  if (ia < 0 || it < 0 || iv < 0) throw new Error('unexpected BIS format');
+  const by: Record<string, { d: string; v: number }[]> = {};
+  for (const l of lines.slice(1)) {
+    const c = l.split(','), v = parseFloat(c[iv]);
+    if (Number.isFinite(v) && c[it]) (by[c[ia]] ??= []).push({ d: c[it], v });
+  }
+  const out: Record<string, PolicyRate> = {};
+  for (const [area, s] of Object.entries(by)) {
+    s.sort((x, y) => (x.d < y.d ? -1 : x.d > y.d ? 1 : 0));
+    const last = s[s.length - 1];
+    let k = s.length - 1;
+    while (k > 0 && s[k - 1].v === last.v) k--;
+    const y = [...s].reverse().find((o) => o.d <= yearAgo);
+    out[area] = { area, v: last.v, d: last.d, prev: k > 0 ? s[k - 1].v : undefined, changed: k > 0 ? s[k].d : undefined, y1: y?.v };
+  }
+  return out;
+}
+export async function bisPolicy(): Promise<Record<string, PolicyRate>> {
+  const csv = await getText(`${HOST.bis}/api/v1/data/WS_CBPOL/D./all?startPeriod=${isoDaysAgo(400)}&detail=dataonly`, { headers: { Accept: 'application/vnd.sdmx.data+csv;version=1.0.0' }, timeout: 45000 });
+  const out = parseBisPolicy(csv);
+  if (!Object.keys(out).length) throw new Error('no policy rates returned');
+  return out;
+}
+export const POLICY: SourceDef<Record<string, PolicyRate>> = {
+  id: 'bis:policy', label: 'Policy rates', provider: 'BIS', every: 6 * 60 * 60_000,
+  asOf: STATIC ? snapTime('bis.json') : undefined,
+  fetch: () => (STATIC ? snap<Record<string, PolicyRate>>('bis.json') : bisPolicy()),
+};

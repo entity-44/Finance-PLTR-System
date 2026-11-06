@@ -3,8 +3,8 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useQuotes } from '@/data/yahoo';
 import { useSource } from '@/data/store';
-import { WB_INDICATORS, worldBankSource } from '@/data/sources';
-import { bondId, CHOKEPOINTS, COUNTRIES, type Country } from '@/data/universe';
+import { POLICY, WB_INDICATORS, worldBankSource } from '@/data/sources';
+import { bondId, policyArea, CHOKEPOINTS, COUNTRIES, type Country } from '@/data/universe';
 import { FRED_MACRO } from '@/data/fred';
 import { big, num, price } from '@/lib/format';
 import { Chg, Panel } from '@/ui/kit';
@@ -29,6 +29,7 @@ export function WorldMap() {
   const q = useQuotes(symbols);
   const wb = useSource(WB);
   const fred = useSource(FRED_MACRO);
+  const pol = useSource(POLICY);
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -84,9 +85,10 @@ export function WorldMap() {
   const fund = sel ? wb.data?.[sel.iso3] : undefined;
   const bs = sel && bondId(sel) ? fred.data?.[bondId(sel)!] : undefined;
   const bond = bs?.length ? bs[bs.length - 1] : undefined;
+  const pr = sel ? pol.data?.[policyArea(sel) ?? ''] : undefined;
   const bondPrev = bs && bs.length > 12 ? bs[bs.length - 13] : undefined;
   return (
-    <Panel id="p-map" title="Global markets map" src={[q, wb, fred]} span="c8 mappanel" hasData>
+    <Panel id="p-map" title="Global markets map" src={[q, wb, fred, pol]} span="c8 mappanel" hasData>
       <div className="mapwrap">
         <div ref={box} className="mapcanvas" />
         {mapErr && <div className="maperr" role="status">{mapErr}</div>}
@@ -106,6 +108,7 @@ export function WorldMap() {
               <tbody>
                 {sel.index && <tr><td>{sel.index[1]}</td><td>{iq ? price(iq.price) : '—'}</td><td><Chg v={iq?.changePct} /></td></tr>}
                 {sel.fx && <tr><td>{sel.fx[1]}</td><td>{fq ? price(fq.price) : '—'}</td><td><Chg v={fq?.changePct} /></td></tr>}
+                {pr && <tr title="Central bank policy rate (BIS). Change is versus a year earlier."><td>Policy rate<br /><small className="faint">{pr.area === 'XM' ? 'ECB' : 'central bank'}{pr.changed ? ' · moved ' + new Date(pr.changed + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : ''}</small></td><td>{pr.v.toFixed(2)}%</td><td>{pr.y1 != null ? <Chg v={(pr.v - pr.y1) * 100} dp={0} suffix="bp" invert /> : ''}</td></tr>}
                 {sel.bond && <tr title="Monthly average long-term (10-year) government bond yield, OECD via FRED. Change is versus a year earlier."><td>10Y gov't yield<br /><small className="faint">{bond ? new Date(bond.d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'OECD'}</small></td><td>{bond ? bond.v.toFixed(2) + '%' : '—'}</td><td>{bond && bondPrev ? <Chg v={(bond.v - bondPrev.v) * 100} dp={0} suffix="bp" invert /> : ''}</td></tr>}
               </tbody>
             </table>

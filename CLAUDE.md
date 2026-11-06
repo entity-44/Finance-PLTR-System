@@ -46,6 +46,12 @@ The app lives in `fintel-project/`. See its README for running it and the source
 - CFTC: TFF dataset `gpe5-46if` (lev_money_*), disaggregated `72hh-3qpy` (m_money_*_all).
   Consolidated codes: S&P 500 `13874+`, Nasdaq-100 `20974+`.
 
+- BIS policy rates: `stats.bis.org/api/v1/data/WS_CBPOL/D./all?startPeriod=…&detail=dataonly` with
+  `Accept: application/vnd.sdmx.data+csv;version=1.0.0`. No CORS (relay `/px/bis`, snapshot `bis.json`). Euro area = XM.
+- OECD 10Y government yields on FRED: `IRLTLT01<CC>M156N` (monthly). Live for 29 OECD countries; none for
+  BR, CN, IN, ID, TR, CO (404) and RU (stopped 2018).
+- Yahoo indices that don't exist: ^IPSA (Chile), ^COLCAP (use ICOLCAP.CL ETF), ^SPBLPGPT (Peru), ^PX (Prague = 0),
+  ^KSE100, ^MASI, ^NGSE, ^QSI, ^DFMGI. Countries without one show currency only.
 - Company data (`src/data/company.ts`): CIK from company_tickers.json; submissions + XBRL companyfacts from
   data.sec.gov (companyfacts has no CORS, so the site precomputes); Form 4 raw XML = primaryDocument with the
   `xslF345X05/` prefix removed. TTM = last FY + current YTD − prior-year YTD. Unit-tested.

@@ -40,7 +40,7 @@ SEC asks automated tools to identify themselves.
 ## Using it
 
 - **Command line**: press `/` or Ctrl/⌘+K. Type a ticker (`NVDA`) for its company page (DES) or chart (GP),
-  or a function: `WEI` indices, `YCRV` curve, `ECO` economy, `BTMM` Fed & liquidity, `COT` positioning,
+  or a function: `WEI` indices, `YCRV` curve, `ECO` economy, `BTMM` Fed & liquidity, `POLR` global policy rates, `COT` positioning,
   `LINK` insider network, `CF` filings, `EVTS` earnings, `ALRT` alerts, `MAP`, `TOP` news.
 - **Company page** (`#/c/TICKER`): price chart, valuation (market cap, P/E, P/S from live price and SEC
   shares/EPS), 5-year and quarterly financials with TTM, profile, insider transactions from Form 4, recent
@@ -56,8 +56,10 @@ SEC asks automated tools to identify themselves.
 | Panel | Source | Refresh |
 |---|---|---|
 | Ticker tape, indices, sectors, volatility, commodities, FX, heatmap, watchlist, S&P history | Yahoo Finance chart API (delayed) | 60 s |
-| Global map: index & currency per country, chokepoints | Yahoo Finance + World Bank indicators | 60 s / daily |
+| Global map: 57 countries, index & currency, chokepoints | Yahoo Finance + World Bank indicators | 60 s / daily |
 | Treasury curve, Fed & central banks, liquidity, credit & conditions | FRED (St. Louis Fed) | 30 min |
+| Global policy rates (~40 central banks), policy rate on the map | Bank for International Settlements | 6 h |
+| 10-year government yields by country (map) | OECD via FRED, monthly | 1 h |
 | US economy (CPI, PCE, jobs, GDP, retail, housing, sentiment, M2) | FRED | 1 h |
 | Fed funds futures-implied rate | Yahoo (ZQ=F) | 60 s |
 | Treasury auctions (results & upcoming) | fiscaldata.treasury.gov | 1 h |

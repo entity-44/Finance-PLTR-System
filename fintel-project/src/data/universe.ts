@@ -57,6 +57,10 @@ export const FOMC_2026 = ['2026-01-28', '2026-03-18', '2026-04-29', '2026-06-17'
 /** Countries on the map: capital coordinates, World Bank code, main index and currency (Yahoo symbols). */
 /** bond: OECD two-letter code for FRED's monthly 10-year government yield (IRLTLT01<code>M156N), where FRED has it. */
 export interface Country { iso3: string; name: string; lat: number; lng: number; index?: Inst; fx?: Inst; bond?: string }
+/** ISO-2 code used by the BIS (euro-area members share the ECB rate, area XM). */
+const EURO = new Set(['DEU', 'FRA', 'ITA', 'ESP', 'NLD', 'AUT', 'BEL', 'FIN', 'IRL', 'PRT', 'GRC']);
+const ISO2: Record<string, string> = { USA: 'US', CAN: 'CA', MEX: 'MX', BRA: 'BR', ARG: 'AR', CHL: 'CL', COL: 'CO', PER: 'PE', GBR: 'GB', CHE: 'CH', SWE: 'SE', DNK: 'DK', NOR: 'NO', POL: 'PL', CZE: 'CZ', HUN: 'HU', TUR: 'TR', ISR: 'IL', SAU: 'SA', ARE: 'AE', QAT: 'QA', KWT: 'KW', EGY: 'EG', MAR: 'MA', NGA: 'NG', GHA: 'GH', KEN: 'KE', ZAF: 'ZA', RUS: 'RU', IND: 'IN', PAK: 'PK', BGD: 'BD', CHN: 'CN', HKG: 'HK', JPN: 'JP', KOR: 'KR', TWN: 'TW', SGP: 'SG', IDN: 'ID', THA: 'TH', MYS: 'MY', VNM: 'VN', PHL: 'PH', AUS: 'AU', NZL: 'NZ' };
+export const policyArea = (c: Country) => (EURO.has(c.iso3) ? 'XM' : ISO2[c.iso3]);
 export const bondId = (c: Country) => (c.bond ? `IRLTLT01${c.bond}M156N` : undefined);
 export const COUNTRIES: Country[] = [
   { iso3: 'USA', name: 'United States', lat: 38.9, lng: -77.04, index: ['^GSPC', 'S&P 500'], fx: ['DX-Y.NYB', 'Dollar Index'], bond: 'US' },

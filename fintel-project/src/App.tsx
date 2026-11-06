@@ -5,7 +5,7 @@ import { ago } from '@/lib/format';
 import { STATIC } from '@/lib/env';
 import { Dot, useNow } from '@/ui/kit';
 import { Commodities, Currencies, Heatmap, History, Indices, Sectors, Tape, Volatility, Watchlist } from '@/panels/markets';
-import { Auctions, CentralBanks, Credit, Economy, YieldCurve } from '@/panels/macro';
+import { Auctions, CentralBanks, Credit, Economy, YieldCurve, GlobalRates } from '@/panels/macro';
 import { Calendar, Crypto, Filings, News, Positioning } from '@/panels/flows';
 import { Brief } from '@/panels/brief';
 import { Alerts, Toasts } from '@/panels/alerts';
@@ -111,6 +111,7 @@ export default function App() {
     crypto: { id: 'p-crypto', label: 'Crypto', span: 'c4', el: <Crypto /> },
     curve: { id: 'p-curve', label: 'Yield curve', span: 'c4', el: <YieldCurve /> },
     cb: { id: 'p-cb', label: 'Central banks', span: 'c4', el: <CentralBanks /> },
+    rates: { id: 'p-rates', label: 'Global policy rates', span: 'c4', el: <GlobalRates /> },
     credit: { id: 'p-credit', label: 'Credit', span: 'c4', el: <Credit /> },
     eco: { id: 'p-eco', label: 'Economy', span: 'c8', el: <Economy /> },
     cot: { id: 'p-cot', label: 'Positioning', span: 'c8', el: <Positioning /> },

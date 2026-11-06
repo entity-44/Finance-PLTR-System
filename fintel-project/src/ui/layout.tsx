@@ -9,10 +9,10 @@ export const SPANS: Span[] = ['c3', 'c4', 'c6', 'c8', 'c12'];
 
 const it = (s: string): Item[] => s.trim().split(/\s+/).map((x) => { const [key, n] = x.split(':'); return { key, span: ('c' + n) as Span }; });
 export const PRESETS: Layout[] = [
-  { name: 'Full terminal', items: it('map:8 indices:4 sectors:4 vol:4 fx:4 heatmap:8 cmdty:4 watch:8 alerts:4 crypto:4 curve:4 cb:4 credit:4 eco:8 cot:8 auctions:4 link:12 news:6 filings:3 cal:3 hist:6 brief:6') },
+  { name: 'Full terminal', items: it('map:8 indices:4 sectors:4 vol:4 fx:4 heatmap:8 cmdty:4 watch:8 alerts:4 crypto:4 curve:4 cb:4 rates:4 credit:4 auctions:4 eco:12 cot:12 link:12 news:6 filings:3 cal:3 hist:6 brief:6') },
   { name: 'Equities desk', items: it('indices:4 sectors:4 vol:4 heatmap:8 alerts:4 watch:8 cal:4 link:12 filings:6 news:6 hist:6 brief:6') },
-  { name: 'Macro & rates', items: it('curve:4 cb:4 credit:4 eco:8 auctions:4 cot:12 fx:4 cmdty:4 vol:4 map:8 news:4') },
-  { name: 'Cross-asset', items: it('map:8 indices:4 fx:4 cmdty:4 crypto:4 cot:12 vol:4 curve:4 news:4') },
+  { name: 'Macro & rates', items: it('curve:4 cb:4 rates:4 credit:4 eco:8 cot:8 auctions:4 fx:4 cmdty:4 vol:4 map:8 news:4') },
+  { name: 'Cross-asset', items: it('map:8 indices:4 fx:4 cmdty:4 rates:4 crypto:4 vol:4 curve:4 cot:12 news:12') },
 ];
 const KEY = 'fintel.layout';
 
@@ -20,6 +20,8 @@ export function useLayout(known: string[]) {
   const [layout, setLayout] = useState<Layout>(() => {
     try {
       const l = JSON.parse(localStorage.getItem(KEY) || 'null') as Layout | null;
+      const preset = PRESETS.find((p) => p.name === l?.name);
+      if (preset) return preset;
       if (l?.items?.length) return { name: l.name, items: l.items.filter((i) => known.includes(i.key)) };
     } catch { /* ignore */ }
     return PRESETS[0];

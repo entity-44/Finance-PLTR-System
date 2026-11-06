@@ -91,3 +91,17 @@ describe('store', () => {
     expect(stateOf<number>('test:again')).toMatchObject({ status: 'stale', data: 2, error: 'boom' });
   });
 });
+
+import { parseBisPolicy } from './sources';
+describe('parseBisPolicy', () => {
+  const csv = ['DATAFLOW,FREQ,REF_AREA,TIME_PERIOD,OBS_VALUE,UNIT_MEASURE',
+    'BIS:WS_CBPOL(1.0),D,JP,2025-10-01,0.5,', 'BIS:WS_CBPOL(1.0),D,JP,2026-09-18,1.25,', 'BIS:WS_CBPOL(1.0),D,JP,2026-09-17,1,',
+    'BIS:WS_CBPOL(1.0),D,JP,2026-11-05,1.25,', 'BIS:WS_CBPOL(1.0),D,GB,2026-11-05,3.75,', 'BIS:WS_CBPOL(1.0),D,GB,2026-11-04,,'].join('\n');
+  const r = parseBisPolicy(csv, '2025-11-05');
+  it('takes the latest value, the last move and the year-ago level', () => {
+    expect(r.JP).toEqual({ area: 'JP', v: 1.25, d: '2026-11-05', prev: 1, changed: '2026-09-18', y1: 0.5 });
+  });
+  it('skips blanks and leaves unknown history undefined', () => {
+    expect(r.GB.v).toBe(3.75); expect(r.GB.prev).toBeUndefined(); expect(r.GB.y1).toBeUndefined();
+  });
+});

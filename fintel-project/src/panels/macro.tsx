@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { atOrBefore, CURVE, diffSeries, FRED_DAILY, FRED_MACRO, last, pctChangeSeries, yoySeries, type Series } from '@/data/fred';
-import { AUCTIONS } from '@/data/sources';
+import { AUCTIONS, POLICY, type PolicyRate } from '@/data/sources';
 import { useSource } from '@/data/store';
 import { useQuotes } from '@/data/yahoo';
 import { FOMC_2026 } from '@/data/universe';
@@ -178,6 +178,44 @@ export function Auctions() {
           </tbody>
         </table>
       ) : <div className="empty">{tab === 'upcoming' ? 'No auctions announced yet for the coming days.' : 'No results.'}</div>}
+    </Panel>
+  );
+}
+
+// ---------------------------------------------------------------- global policy rates (BIS)
+const regionName = (() => {
+  let dn: Intl.DisplayNames | undefined;
+  try { dn = new Intl.DisplayNames(['en'], { type: 'region' }); } catch { /* old browser */ }
+  return (a: string) => (a === 'XM' ? 'Euro area (ECB)' : dn?.of(a) ?? a);
+})();
+const shortDate = (d?: string) => (d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '');
+
+export function GlobalRates() {
+  const p = useSource(POLICY);
+  const [sort, setSort] = useState<'recent' | 'level' | 'year'>('recent');
+  const rows: PolicyRate[] = Object.values(p.data ?? {});
+  rows.sort((a, b) => sort === 'level' ? b.v - a.v
+    : sort === 'year' ? (isNum(b.y1) ? b.v - b.y1! : -999) - (isNum(a.y1) ? a.v - a.y1! : -999)
+    : (b.changed ?? '').localeCompare(a.changed ?? ''));
+  const hikes = rows.filter((r) => r.changed && r.prev != null && r.v > r.prev && r.changed >= isoDaysAgo(90)).length;
+  const cuts = rows.filter((r) => r.changed && r.prev != null && r.v < r.prev && r.changed >= isoDaysAgo(90)).length;
+  return (
+    <Panel id="p-rates" title="Global policy rates" src={p} span="c4"
+      right={<Tabs small value={sort} onChange={setSort} options={[['recent', 'Recent moves'], ['level', 'Level'], ['year', '12m']]} />}
+      note={`${rows.length} central banks · last 90 days: ${hikes} hike${hikes === 1 ? '' : 's'}, ${cuts} cut${cuts === 1 ? '' : 's'}. Bank for International Settlements, daily.`}>
+      <table className="t long">
+        <thead><tr><th>Central bank</th><th>Rate</th><th>Last move</th><th>12m</th></tr></thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.area}>
+              <td>{regionName(r.area)}</td>
+              <td>{num(r.v, 2)}%</td>
+              <td>{r.changed && r.prev != null ? <span title={shortDate(r.changed)}><Chg v={(r.v - r.prev) * 100} dp={0} suffix="bp" /> <small className="faint">{shortDate(r.changed)}</small></span> : <small className="faint">none in 12m</small>}</td>
+              <td>{isNum(r.y1) ? <Chg v={(r.v - r.y1!) * 100} dp={0} suffix="bp" /> : '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </Panel>
   );
 }
