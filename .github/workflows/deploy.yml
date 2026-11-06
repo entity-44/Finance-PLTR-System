@@ -43,6 +43,7 @@ jobs:
             fintel-project/public/snap/quotes-5y.json
             fintel-project/public/snap/chart-_GSPC-max.json
             fintel-project/public/snap/brief.json
+            fintel-project/public/snap/imf.json
           key: companies-${{ steps.day.outputs.d }}-${{ github.run_id }}
           restore-keys: |
             companies-${{ steps.day.outputs.d }}-

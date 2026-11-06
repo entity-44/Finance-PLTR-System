@@ -1,6 +1,6 @@
 # Parallax (formerly FINTEL COMMAND): project context for Claude
 
-The repo is ldiazbusquets/fintel-command; the product name is Parallax. Internal ids (`fintel.*` storage
+The repo is ldiazbusquets/parallax (site: ldiazbusquets.github.io/parallax/); the product name is Parallax. Internal ids (`fintel.*` storage
 keys, `fintel:*` events, the `fintel-project/` folder) keep the old name on purpose: renaming storage keys
 would wipe visitors' saved layouts, watchlists, alerts and keys.
 
