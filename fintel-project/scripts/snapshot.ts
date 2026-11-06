@@ -146,7 +146,8 @@ async function main() {
   const failed = Object.values(report).filter((v) => v.startsWith('failed')).length;
   log(`done · ${failed} step(s) failed`);
   // Only fail the job if nothing usable was produced, so one flaky source never blocks the deploy.
-  if (failed && failed === Object.keys(report).length) process.exit(1);
+  // Exit explicitly: a step that hit its time limit may still have requests in flight.
+  process.exit(failed && failed === Object.keys(report).length ? 1 : 0);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
