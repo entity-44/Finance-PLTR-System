@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { chart, spark, useQuotes, type Bars, type Quote } from '@/data/yahoo';
+import { chart, chartAsOf, spark, SNAP_FILES, useQuotes, type Bars, type Quote } from '@/data/yahoo';
+import { snapTime, STATIC } from '@/lib/env';
 import { sourceFor, useSource } from '@/data/store';
 import { COMMODITIES, DEFAULT_WATCHLIST, FX, HEATMAP, INDICES, SECTORS, TAPE, VOL } from '@/data/universe';
 import { isNum, num, pct, price } from '@/lib/format';
@@ -60,6 +61,7 @@ export function Indices() {
 // ---------------------------------------------------------------- sectors with multi-period returns
 const SECTOR_HIST = sourceFor('yahoo:sectors3mo', () => ({
   id: 'yahoo:sectors3mo', label: 'Sector history', provider: 'Yahoo Finance', every: 30 * 60_000,
+  asOf: STATIC ? snapTime(SNAP_FILES['1y']) : undefined,
   fetch: () => spark([...SECTORS.map((s) => s[0]), 'SPY'], '6mo', '1d'),
 }));
 function retOver(q: Quote | undefined, days: number): number | null {
@@ -173,7 +175,7 @@ export function Heatmap({ onPick }: { onPick: (s: string) => void }) {
   return (
     <Panel id="p-heatmap" title="Large-cap heatmap" src={q} span="c8"
       right={<span className="mono dim" style={{ fontSize: 11 }}>{vals.length ? <>{adv}/{vals.length} up · avg <Chg v={avg} /></> : null}</span>}
-      note="Daily change of 59 large US stocks, grouped by sector. Tiles are equal-sized (not market-cap weighted). Click a tile to chart it.">
+      note="Daily change of 59 large US stocks, grouped by sector. Tiles are equal-sized (not market-cap weighted). Click a tile for the company page.">
       <div className="hm">
         {HEATMAP.map((g) => (
           <div className="hm-s" key={g.sector} style={{ flexGrow: g.items.length }}>
@@ -196,9 +198,9 @@ export function Heatmap({ onPick }: { onPick: (s: string) => void }) {
 }
 
 // ---------------------------------------------------------------- watchlist + chart
-const RANGES: Record<string, [string, string]> = { '1D': ['1d', '5m'], '5D': ['5d', '30m'], '1M': ['1mo', '1d'], '6M': ['6mo', '1d'], '1Y': ['1y', '1d'], '5Y': ['5y', '1wk'] };
-function chartSource(sym: string, r: string) {
-  return sourceFor(`yahoo:chart:${sym}:${r}`, () => ({ id: `yahoo:chart:${sym}:${r}`, label: `${sym} chart`, provider: 'Yahoo Finance', every: r === '1D' || r === '5D' ? 60_000 : 15 * 60_000, fetch: () => chart(sym, RANGES[r][0], RANGES[r][1]) }));
+export const RANGES: Record<string, [string, string]> = { '1D': ['1d', '5m'], '5D': ['5d', '30m'], '1M': ['1mo', '1d'], '6M': ['6mo', '1d'], '1Y': ['1y', '1d'], '5Y': ['5y', '1wk'] };
+export function chartSource(sym: string, r: string) {
+  return sourceFor(`yahoo:chart:${sym}:${r}`, () => ({ id: `yahoo:chart:${sym}:${r}`, label: `${sym} chart`, provider: 'Yahoo Finance', every: r === '1D' || r === '5D' ? 60_000 : 15 * 60_000, asOf: chartAsOf(RANGES[r][0]), fetch: () => chart(sym, RANGES[r][0], RANGES[r][1]) }));
 }
 function loadList(): string[] {
   try { const v = JSON.parse(localStorage.getItem('fintel.watchlist') || 'null'); return Array.isArray(v) && v.length ? v : DEFAULT_WATCHLIST; } catch { return DEFAULT_WATCHLIST; }
@@ -242,7 +244,10 @@ export function Watchlist({ sel, setSel }: { sel: string; setSel: (s: string) =>
               <b className="mono" style={{ fontSize: 15 }}>{sel}</b> <span className="dim">{x?.name ?? bars?.name ?? ''}</span>
               <div className="mono" style={{ fontSize: 22, fontWeight: 600 }}>{x ? price(x.price) : '—'} <span style={{ fontSize: 13 }}><Chg v={periodChg} /> <span className="faint">{range}</span></span></div>
             </div>
-            <Tabs value={range} onChange={setRange} small options={Object.keys(RANGES).map((k) => [k, k] as [string, string])} />
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <button className="btn" onClick={() => { location.hash = '#/c/' + sel; }} title="Company page">DES</button>
+              <Tabs value={range} onChange={setRange} small options={Object.keys(RANGES).map((k) => [k, k] as [string, string])} />
+            </div>
           </div>
           {bars && bars.c.length > 1
             ? <LineChart t={bars.t} v={bars.c} h={210} base={range === '1D' ? x?.prev ?? bars.prevClose : undefined} intraday={range === '1D' || range === '5D'} />
@@ -259,7 +264,7 @@ export function Watchlist({ sel, setSel }: { sel: string; setSel: (s: string) =>
 }
 
 // ---------------------------------------------------------------- S&P 500 calendar-year history
-const HIST = sourceFor('yahoo:gspc:max', () => ({ id: 'yahoo:gspc:max', label: 'S&P 500 history', provider: 'Yahoo Finance', every: 6 * 60 * 60_000, fetch: () => chart('^GSPC', 'max', '1mo') }));
+const HIST = sourceFor('yahoo:gspc:max', () => ({ id: 'yahoo:gspc:max', label: 'S&P 500 history', provider: 'Yahoo Finance', every: 6 * 60 * 60_000, asOf: STATIC ? snapTime('chart-_GSPC-max.json') : undefined, fetch: () => chart('^GSPC', 'max', '1mo') }));
 export function History() {
   const h = useSource(HIST);
   const years = useMemo(() => {

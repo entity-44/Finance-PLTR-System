@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { atOrBefore, diffSeries, fredSource, last, pctChangeSeries, yoySeries, type Series } from '@/data/fred';
+import { atOrBefore, CURVE, diffSeries, FRED_DAILY, FRED_MACRO, last, pctChangeSeries, yoySeries, type Series } from '@/data/fred';
 import { AUCTIONS } from '@/data/sources';
 import { useSource } from '@/data/store';
 import { useQuotes } from '@/data/yahoo';
@@ -8,12 +8,6 @@ import { big, bp, dateLabel, isNum, isoDaysAgo, monthLabel, num, signed } from '
 import { Chg, Panel, Spark, Tabs } from '@/ui/kit';
 import { CurveChart } from '@/ui/charts';
 import { T } from '@/ui/theme';
-
-const CURVE: [string, string][] = [['DGS1MO', '1M'], ['DGS3MO', '3M'], ['DGS6MO', '6M'], ['DGS1', '1Y'], ['DGS2', '2Y'], ['DGS3', '3Y'], ['DGS5', '5Y'], ['DGS7', '7Y'], ['DGS10', '10Y'], ['DGS20', '20Y'], ['DGS30', '30Y']];
-const DAILY_IDS = [...CURVE.map((c) => c[0]), 'DFEDTARU', 'DFEDTARL', 'EFFR', 'SOFR', 'ECBDFR', 'IUDSOIA', 'T10Y2Y', 'T10Y3M', 'T10YIE', 'DFII10', 'BAMLH0A0HYM2', 'BAMLC0A0CM', 'NFCI', 'STLFSI4', 'WALCL', 'RRPONTSYD', 'WTREGEN', 'MORTGAGE30US', 'DTWEXBGS'];
-const MACRO_IDS = ['CPIAUCSL', 'CPILFESL', 'PCEPILFE', 'UNRATE', 'PAYEMS', 'ICSA', 'A191RL1Q225SBEA', 'RSAFS', 'INDPRO', 'HOUST', 'UMCSENT', 'M2SL'];
-export const FRED_DAILY = fredSource('fred:daily', 'Rates, credit & liquidity', DAILY_IDS, 400);
-export const FRED_MACRO = fredSource('fred:macro', 'Economic data', MACRO_IDS, 1150, 60 * 60_000);
 
 const spk = (s: Series | undefined, n: number) => (s ?? []).slice(-n).map((o) => o.v);
 

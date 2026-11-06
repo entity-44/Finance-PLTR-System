@@ -22,6 +22,7 @@ export interface SourceDef<T> {
   provider: string;       // where it comes from, e.g. "FRED"
   every: number;          // refresh interval, ms
   requires?: KeyName;     // optional key this source needs
+  asOf?: () => number | undefined; // when the data was produced, if not "now" (website snapshots)
   fetch: () => Promise<T>;
 }
 
@@ -50,7 +51,7 @@ export function run(id: string): Promise<void> {
   }
   if (!prev?.data) put(id, { ...base, status: 'loading' });
   const p = def.fetch()
-    .then((data) => put(id, { ...base, data, status: 'live', updated: Date.now() }))
+    .then((data) => put(id, { ...base, data, status: 'live', updated: def.asOf?.() ?? Date.now() }))
     .catch((e: unknown) => {
       const error = e instanceof Error ? e.message : String(e);
       put(id, { ...base, data: prev?.data, updated: prev?.updated, error, status: prev?.data ? 'stale' : 'error' });

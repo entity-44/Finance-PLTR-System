@@ -10,6 +10,15 @@ The app lives in `fintel-project/`. See its README for running it and the source
   is server-side only (vite.config.ts).
 - Keep `npm run build` (strict TS, noUnusedLocals) and `npm test` green. The GitHub "CI" workflow runs both.
 
+## Modes (src/lib/env.ts)
+- Local dev/preview: CORS-blocked hosts via the Vite relay `/px/<name>`.
+- Website (`VITE_STATIC=1`): those hosts come from `public/snap/*.json` (`{ generated, data }`) written by
+  `scripts/snapshot.ts`, run by `.github/workflows/deploy.yml` every ~15 min. Source defs set `asOf` so
+  "updated" shows the snapshot time. Anything a browser can call directly stays live.
+- Node (snapshot script, run with vite-node): hosts fetched directly; `getText` adds a User-Agent
+  (`SEC_USER_AGENT` secret for sec.gov).
+- Relay prefixes are prefix-matched in order: never add one that starts with an existing one (`/px/sec*`).
+
 ## Architecture
 - `src/data/store.ts`: every data source is a `SourceDef { id, label, provider, every, requires?, fetch }`.
   `useSource(def)` shares one fetch per id across panels, refreshes on `every`, pauses while the tab is
@@ -33,7 +42,13 @@ The app lives in `fintel-project/`. See its README for running it and the source
 - CFTC: TFF dataset `gpe5-46if` (lev_money_*), disaggregated `72hh-3qpy` (m_money_*_all).
   Consolidated codes: S&P 500 `13874+`, Nasdaq-100 `20974+`.
 
+- Company data (`src/data/company.ts`): CIK from company_tickers.json; submissions + XBRL companyfacts from
+  data.sec.gov (companyfacts has no CORS, so the site precomputes); Form 4 raw XML = primaryDocument with the
+  `xslF345X05/` prefix removed. TTM = last FY + current YTD − prior-year YTD. Unit-tested.
+- Layout (`src/ui/layout.tsx`): panel registry lives in App.tsx (`PANELS`), presets in layout.tsx; each preset
+  row should sum to 12.
+
 ## Ideas not built yet
 - Aesthetic pass (Luis is sending a reference).
-- Hosting: needs a tiny server/edge relay for the `/px` routes (Vite only relays in dev/preview).
 - Earnings-season beat rate across a full season (needs a longer Finnhub window).
+- Institutional holders (13F) and activist stakes (13D/G) as extra edges in the link view.

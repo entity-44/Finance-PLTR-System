@@ -1,14 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { refreshAll, useAllSources } from '@/data/store';
 import { KEY_INFO, getKey, keySource, setKey, type KeyName } from '@/lib/keys';
 import { ago } from '@/lib/format';
+import { STATIC } from '@/lib/env';
 import { Dot, useNow } from '@/ui/kit';
 import { Commodities, Currencies, Heatmap, History, Indices, Sectors, Tape, Volatility, Watchlist } from '@/panels/markets';
 import { Auctions, CentralBanks, Credit, Economy, YieldCurve } from '@/panels/macro';
 import { Calendar, Crypto, Filings, News, Positioning } from '@/panels/flows';
 import { Brief } from '@/panels/brief';
+import { Alerts, Toasts } from '@/panels/alerts';
+import { LinkView } from '@/panels/network';
+import { CompanyPage, openCompany, useCompanyRoute } from '@/panels/company';
 import { WorldMap } from '@/map/WorldMap';
 import { CommandBar } from '@/ui/Command';
+import { PRESETS, Slot, useLayout, type Span } from '@/ui/layout';
 
 // Exchange hours (local time) for the clocks. Weekends closed; holidays not modelled.
 const CLOCKS: { label: string; tz: string; open: [number, number]; close: [number, number] }[] = [
@@ -43,7 +48,7 @@ function Settings({ onClose }: { onClose: () => void }) {
     <div className="modal" onClick={onClose} role="dialog" aria-modal="true" aria-label="Settings">
       <div className="modal-in" onClick={(e) => e.stopPropagation()}>
         <h2>OPTIONAL API KEYS</h2>
-        <p className="dim" style={{ marginBottom: 14, fontSize: 12 }}>Everything else works without keys. Keys are saved only in this browser.</p>
+        <p className="dim" style={{ marginBottom: 14, fontSize: 12 }}>Everything else works without keys. Keys are saved only in this browser and sent only to their own service.</p>
         {(Object.keys(KEY_INFO) as KeyName[]).map((k) => (
           <div className="field" key={k}>
             <label htmlFor={'k-' + k}>{KEY_INFO[k].label} <small className="faint">({keySource(k) === 'env' ? 'from .env' : keySource(k) === 'browser' ? 'saved' : 'not set'})</small></label>
@@ -56,6 +61,7 @@ function Settings({ onClose }: { onClose: () => void }) {
           <button className="btn pri" onClick={() => { (Object.keys(vals) as KeyName[]).forEach((k) => setKey(k, vals[k])); onClose(); }}>Save keys</button>
         </div>
         <h2>DATA SOURCES</h2>
+        {STATIC && <p className="dim" style={{ fontSize: 12, marginBottom: 8 }}>Website mode: Yahoo, FRED, SEC and news come from a snapshot a GitHub job refreshes about every 15 minutes (company data daily). Treasury, CFTC, crypto, World Bank, Finnhub and Groq load live.</p>}
         <ul className="srclist">
           {all.sort((a, b) => a.label.localeCompare(b.label)).map((s) => (
             <li key={s.id}><Dot status={s.status} /><span>{s.label} <span className="faint">· {s.provider}</span></span><span className="mono dim" style={{ fontSize: 11 }}>{s.updated ? ago(s.updated, now) : s.status}</span>{s.error && <small>{s.error}</small>}</li>
@@ -75,7 +81,7 @@ function Health({ onClick }: { onClick: () => void }) {
   return (
     <button className="health" onClick={onClick} title="Data sources and settings">
       <Dot status={bad ? 'stale' : live ? 'live' : 'loading'} />
-      {live}/{all.length} live{bad ? ` · ${bad} issue${bad > 1 ? 's' : ''}` : ''}{keys ? ` · ${keys} need key` : ''}
+      <span className="h-txt">{live}/{all.length} live{bad ? ` · ${bad} issue${bad > 1 ? 's' : ''}` : ''}{keys ? ` · ${keys} need key` : ''}</span>
       <span aria-hidden="true" style={{ marginLeft: 4 }}>⚙</span>
     </button>
   );
@@ -83,9 +89,49 @@ function Health({ onClick }: { onClick: () => void }) {
 
 export default function App() {
   const [settings, setSettings] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [sel, setSel] = useState('PLTR');
+  const [company, closeCompany] = useCompanyRoute();
   useEffect(() => { const o = () => setSettings(true); addEventListener('fintel:settings', o); return () => removeEventListener('fintel:settings', o); }, []);
-  const pick = (s: string) => { setSel(s); document.getElementById('p-watch')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+  const chartIt = useCallback((s: string) => { setSel(s); }, []);
+
+  const PANELS: Record<string, { id: string; label: string; span: Span; el: ReactNode }> = {
+    map: { id: 'p-map', label: 'World map', span: 'c8', el: <WorldMap /> },
+    indices: { id: 'p-indices', label: 'Indices', span: 'c4', el: <Indices /> },
+    sectors: { id: 'p-sectors', label: 'Sectors', span: 'c4', el: <Sectors /> },
+    vol: { id: 'p-vol', label: 'Volatility', span: 'c4', el: <Volatility /> },
+    fx: { id: 'p-fx', label: 'Currencies', span: 'c4', el: <Currencies /> },
+    heatmap: { id: 'p-heatmap', label: 'Heatmap', span: 'c8', el: <Heatmap onPick={openCompany} /> },
+    cmdty: { id: 'p-cmdty', label: 'Commodities', span: 'c4', el: <Commodities /> },
+    watch: { id: 'p-watch', label: 'Watchlist', span: 'c8', el: <Watchlist sel={sel} setSel={setSel} /> },
+    alerts: { id: 'p-alerts', label: 'Alerts', span: 'c4', el: <Alerts /> },
+    crypto: { id: 'p-crypto', label: 'Crypto', span: 'c4', el: <Crypto /> },
+    curve: { id: 'p-curve', label: 'Yield curve', span: 'c4', el: <YieldCurve /> },
+    cb: { id: 'p-cb', label: 'Central banks', span: 'c4', el: <CentralBanks /> },
+    credit: { id: 'p-credit', label: 'Credit', span: 'c4', el: <Credit /> },
+    eco: { id: 'p-eco', label: 'Economy', span: 'c8', el: <Economy /> },
+    cot: { id: 'p-cot', label: 'Positioning', span: 'c8', el: <Positioning /> },
+    auctions: { id: 'p-auctions', label: 'Auctions', span: 'c4', el: <Auctions /> },
+    link: { id: 'p-link', label: 'Link analysis', span: 'c12', el: <LinkView onOpen={openCompany} /> },
+    news: { id: 'p-news', label: 'Headlines', span: 'c6', el: <News /> },
+    filings: { id: 'p-filings', label: 'SEC filings', span: 'c3', el: <Filings /> },
+    cal: { id: 'p-cal', label: 'Earnings & IPOs', span: 'c3', el: <Calendar /> },
+    hist: { id: 'p-hist', label: 'S&P history', span: 'c6', el: <History /> },
+    brief: { id: 'p-brief', label: 'AI brief', span: 'c6', el: <Brief /> },
+  };
+  const L = useLayout(Object.keys(PANELS));
+  const hidden = Object.keys(PANELS).filter((k) => !L.layout.items.some((i) => i.key === k));
+
+  // A command that targets a hidden panel adds it back, then scrolls to it.
+  useEffect(() => {
+    const f = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      const key = Object.keys(PANELS).find((k) => PANELS[k].id === id);
+      if (key) { L.show(key, PANELS[key].span); setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80); }
+    };
+    addEventListener('fintel:need-panel', f); return () => removeEventListener('fintel:need-panel', f);
+  });
+
   return (
     <>
       <header className="top">
@@ -93,40 +139,38 @@ export default function App() {
           <div className="brand">FINTEL<b>·</b>COMMAND</div>
           <Clocks />
           <div className="sp" />
-          <CommandBar onTicker={(s) => setSel(s)} />
+          <CommandBar onTicker={chartIt} onCompany={openCompany} />
+          <select className="in layout-pick" value={PRESETS.some((p) => p.name === L.layout.name) ? L.layout.name : 'Custom'} aria-label="Layout"
+            onChange={(e) => { const p = PRESETS.find((x) => x.name === e.target.value); if (p) L.choose(p); }}>
+            {PRESETS.map((p) => <option key={p.name}>{p.name}</option>)}
+            {!PRESETS.some((p) => p.name === L.layout.name) && <option>Custom</option>}
+          </select>
+          <button className={'btn edit-btn' + (editing ? ' pri' : '')} onClick={() => setEditing((v) => !v)}>{editing ? 'Done' : 'Edit layout'}</button>
           <Health onClick={() => setSettings(true)} />
         </div>
         <Tape />
       </header>
-      <main>
-        <WorldMap />
-        <Indices />
-        <div className="sec-h">MARKETS</div>
-        <Sectors />
-        <Volatility />
-        <Currencies />
-        <Heatmap onPick={pick} />
-        <Commodities />
-        <Watchlist sel={sel} setSel={setSel} />
-        <Crypto />
-        <div className="sec-h">RATES &amp; MACRO</div>
-        <YieldCurve />
-        <CentralBanks />
-        <Credit />
-        <Economy />
-        <Positioning />
-        <div className="sec-h">NEWS, FILINGS &amp; EVENTS</div>
-        <News />
-        <Filings />
-        <Calendar />
-        <Auctions />
-        <History />
-        <Brief />
+      {editing && (
+        <div className="tray">
+          <span className="mono dim" style={{ fontSize: 11 }}>Drag panels or use the arrows · {hidden.length ? 'Add back:' : 'All panels shown'}</span>
+          {hidden.map((k) => <button key={k} className="btn" onClick={() => L.show(k, PANELS[k].span)}>+ {PANELS[k].label}</button>)}
+        </div>
+      )}
+      <main aria-hidden={!!company}>
+        {L.layout.items.map((item) => (
+          <Slot key={item.key} item={item} editing={editing} label={PANELS[item.key].label}
+            onMove={(d) => L.move(item.key, d)} onResize={(d) => L.resize(item.key, d)} onHide={() => L.hide(item.key)} onDrop={(from) => L.moveTo(from, item.key)}>
+            {PANELS[item.key].el}
+          </Slot>
+        ))}
       </main>
       <footer className="mono faint" style={{ fontSize: 10.5, padding: '6px 16px 20px', textAlign: 'center' }}>
-        Data: Yahoo Finance (delayed), FRED, U.S. Treasury, CFTC, SEC EDGAR, World Bank, CoinGecko, mempool.space, alternative.me, Finnhub. For research, not trading advice.
+        Open-source terminal · Data: Yahoo Finance (delayed), FRED, U.S. Treasury, CFTC, SEC EDGAR, World Bank, CoinGecko, mempool.space, alternative.me, Finnhub. For research, not trading advice.
+        {STATIC && ' Website data refreshes about every 15 minutes.'}
       </footer>
+      {company && <CompanyPage key={company} ticker={company} onClose={closeCompany} onTicker={openCompany} />}
       {settings && <Settings onClose={() => setSettings(false)} />}
+      <Toasts />
     </>
   );
 }

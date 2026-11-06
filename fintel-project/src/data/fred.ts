@@ -1,5 +1,6 @@
 import { getText, pool } from '@/lib/http';
 import { isoDaysAgo } from '@/lib/format';
+import { HOST, snap, snapTime, STATIC } from '@/lib/env';
 import type { SourceDef } from './store';
 
 // FRED (Federal Reserve Bank of St. Louis) public CSV download: no key needed. Reached through /px/fred.
@@ -23,7 +24,7 @@ export function parseFredCsv(csv: string): Series {
 }
 
 export async function fredSeries(id: string, sinceDays: number): Promise<Series> {
-  const csv = await getText(`/px/fred/graph/fredgraph.csv?id=${id}&cosd=${isoDaysAgo(sinceDays)}`);
+  const csv = await getText(`${HOST.fred}/graph/fredgraph.csv?id=${id}&cosd=${isoDaysAgo(sinceDays)}`);
   if (!csv.startsWith('observation_date') && !csv.startsWith('DATE')) throw new Error(`FRED ${id}: unexpected response`);
   return parseFredCsv(csv);
 }
@@ -35,9 +36,20 @@ export async function fredMany(ids: string[], sinceDays: number): Promise<Record
   return out;
 }
 
-export function fredSource(id: string, label: string, ids: string[], sinceDays: number, every = 30 * 60_000): SourceDef<Record<string, Series>> {
-  return { id, label, provider: 'FRED', every, fetch: () => fredMany(ids, sinceDays) };
+export const CURVE: [string, string][] = [['DGS1MO', '1M'], ['DGS3MO', '3M'], ['DGS6MO', '6M'], ['DGS1', '1Y'], ['DGS2', '2Y'], ['DGS3', '3Y'], ['DGS5', '5Y'], ['DGS7', '7Y'], ['DGS10', '10Y'], ['DGS20', '20Y'], ['DGS30', '30Y']];
+export const DAILY_IDS = [...CURVE.map((c) => c[0]), 'DFEDTARU', 'DFEDTARL', 'EFFR', 'SOFR', 'ECBDFR', 'IUDSOIA', 'T10Y2Y', 'T10Y3M', 'T10YIE', 'DFII10', 'BAMLH0A0HYM2', 'BAMLC0A0CM', 'NFCI', 'STLFSI4', 'WALCL', 'RRPONTSYD', 'WTREGEN', 'MORTGAGE30US', 'DTWEXBGS'];
+export const MACRO_IDS = ['CPIAUCSL', 'CPILFESL', 'PCEPILFE', 'UNRATE', 'PAYEMS', 'ICSA', 'A191RL1Q225SBEA', 'RSAFS', 'INDPRO', 'HOUST', 'UMCSENT', 'M2SL'];
+export const FRED_SINCE = { daily: 400, macro: 1150 };
+
+function fredSource(id: string, label: string, part: 'daily' | 'macro', ids: string[], every: number): SourceDef<Record<string, Series>> {
+  return {
+    id, label, provider: 'FRED', every,
+    asOf: STATIC ? snapTime('fred.json') : undefined,
+    fetch: STATIC ? async () => (await snap<Record<'daily' | 'macro', Record<string, Series>>>('fred.json'))[part] : () => fredMany(ids, FRED_SINCE[part]),
+  };
 }
+export const FRED_DAILY = fredSource('fred:daily', 'Rates, credit & liquidity', 'daily', DAILY_IDS, 30 * 60_000);
+export const FRED_MACRO = fredSource('fred:macro', 'Economic data', 'macro', MACRO_IDS, 60 * 60_000);
 
 // ---- helpers over series ----
 export const last = (s?: Series): Obs | undefined => s?.[s.length - 1];

@@ -4,14 +4,23 @@ export class HttpError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
+const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
+/** In Node (the snapshot job) identify ourselves: SEC wants a contact; other hosts get a browser UA. */
+function nodeHeaders(url: string): Record<string, string> {
+  if (typeof window !== 'undefined') return {};
+  const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
+  return { 'User-Agent': /sec\.gov/.test(url) ? env.SEC_USER_AGENT || 'FINTEL Command open-source terminal (github.com/entity-44/Finance-PLTR-System)' : BROWSER_UA };
+}
+
 export async function getText(url: string, init: RequestInit & { timeout?: number } = {}): Promise<string> {
   const { timeout = 15000, ...rest } = init;
+  rest.headers = { ...nodeHeaders(url), ...(rest.headers as Record<string, string> | undefined) };
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeout);
   try {
     const res = await fetch(url, { ...rest, signal: ctl.signal });
     if (!res.ok) {
-      const hint = res.status === 429 ? 'rate limited, will retry' : res.status === 401 || res.status === 403 ? 'refused (check the API key)' : res.statusText;
+      const hint = res.status === 429 ? 'rate limited, will retry' : res.status === 401 ? 'unauthorized (check the API key)' : res.status === 403 ? 'refused by the source' : res.statusText;
       throw new HttpError(res.status, `HTTP ${res.status}${hint ? ' · ' + hint : ''}`);
     }
     return await res.text();

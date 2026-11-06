@@ -1,6 +1,7 @@
 import { getJSON, getText } from '@/lib/http';
 import { isoDaysAgo } from '@/lib/format';
 import { getKey } from '@/lib/keys';
+import { HOST, snap, snapTime, STATIC } from '@/lib/env';
 import type { SourceDef } from './store';
 
 // ============================ U.S. Treasury auctions (fiscaldata.treasury.gov, CORS, no key)
@@ -159,20 +160,24 @@ export function parseEdgarAtom(xml: string): Filing[] {
     return { form: m?.[1] || e.querySelector('category')?.getAttribute('term') || '', company: m?.[2] || title, cik: m?.[3] || '', when: e.querySelector('updated')?.textContent || '', link: e.querySelector('link')?.getAttribute('href') || '', items };
   });
 }
+export const EDGAR_FORMS = ['8-K', '4', 'S-1', 'SC 13D'];
+export const edgarUrl = (form: string) => `${HOST.sec}/cgi-bin/browse-edgar?action=getcurrent&type=${encodeURIComponent(form)}&company=&dateb=&owner=include&start=0&count=40&output=atom`;
+export const edgarSnapName = (form: string) => `sec-${form.replace(/\W+/g, '_')}.json`;
 export function edgarSource(form: string): SourceDef<Filing[]> {
   return {
     id: 'sec:' + form, label: `SEC filings · ${form}`, provider: 'SEC EDGAR', every: 5 * 60_000,
-    fetch: async () => parseEdgarAtom(await getText(`/px/sec/cgi-bin/browse-edgar?action=getcurrent&type=${encodeURIComponent(form)}&company=&dateb=&owner=include&start=0&count=40&output=atom`)),
+    asOf: STATIC ? snapTime(edgarSnapName(form)) : undefined,
+    fetch: async () => parseEdgarAtom(STATIC ? await snap<string>(edgarSnapName(form)) : await getText(edgarUrl(form))),
   };
 }
 
 // ============================ News (RSS through the relay)
 export interface Headline { title: string; link: string; when: number; source: string }
-export const FEEDS: { source: string; url: string }[] = [
-  { source: 'CNBC', url: '/px/cnbc/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114' },
-  { source: 'MarketWatch', url: '/px/mw/public/rss/mw_topstories' },
-  { source: 'Federal Reserve', url: '/px/fed/feeds/press_all.xml' },
-  { source: 'SEC', url: '/px/sec/news/pressreleases.rss' },
+export const FEEDS: { source: string; key: string; url: string }[] = [
+  { source: 'CNBC', key: 'cnbc', url: `${HOST.cnbc}/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114` },
+  { source: 'MarketWatch', key: 'mw', url: `${HOST.mw}/public/rss/mw_topstories` },
+  { source: 'Federal Reserve', key: 'fed', url: `${HOST.fed}/feeds/press_all.xml` },
+  { source: 'SEC', key: 'sec', url: `${HOST.sec}/news/pressreleases.rss` },
 ];
 export function parseRss(xml: string, source: string): Headline[] {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
@@ -188,8 +193,13 @@ export function parseRss(xml: string, source: string): Headline[] {
 }
 export const NEWS: SourceDef<Headline[]> = {
   id: 'news', label: 'Headlines', provider: 'CNBC · MarketWatch · Fed · SEC', every: 5 * 60_000,
+  asOf: STATIC ? snapTime('rss.json') : undefined,
   fetch: async () => {
-    const res = await Promise.allSettled(FEEDS.map(async (f) => parseRss(await getText(f.url), f.source)));
+    const xml: Record<string, string> = STATIC ? await snap<Record<string, string>>('rss.json') : {};
+    const res = await Promise.allSettled(FEEDS.map(async (f) => {
+      if (STATIC && !xml[f.key]) throw new Error(`${f.source} feed missing from snapshot`);
+      return parseRss(STATIC ? xml[f.key] : await getText(f.url), f.source);
+    }));
     const ok = res.filter((r): r is PromiseFulfilledResult<Headline[]> => r.status === 'fulfilled');
     if (!ok.length) throw (res[0] as PromiseRejectedResult).reason;
     const seen = new Set<string>();
@@ -236,7 +246,7 @@ export const IPOS: SourceDef<IpoEvent[]> = {
 export async function groqBrief(prompt: string): Promise<string> {
   const key = getKey('groq');
   if (!key) throw new Error('Add a Groq key in Settings');
-  const res = await getJSON<{ choices: { message: { content: string } }[] }>('/px/groq/openai/v1/chat/completions', {
+  const res = await getJSON<{ choices: { message: { content: string } }[] }>('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST', timeout: 45000,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
     body: JSON.stringify({

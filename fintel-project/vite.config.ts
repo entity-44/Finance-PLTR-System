@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
     '/px/fed': relay('https://www.federalreserve.gov', '/px/fed', { 'User-Agent': BROWSER_UA }),
     '/px/cnbc': relay('https://search.cnbc.com', '/px/cnbc', { 'User-Agent': BROWSER_UA }),
     '/px/mw': relay('https://feeds.content.dowjones.io', '/px/mw', { 'User-Agent': BROWSER_UA }),
-    '/px/groq': relay('https://api.groq.com', '/px/groq'),
+    '/px/xbrl': relay('https://data.sec.gov', '/px/xbrl', { 'User-Agent': secUA }),
   };
   return {
     plugins: [react()],

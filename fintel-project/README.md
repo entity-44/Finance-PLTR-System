@@ -1,6 +1,7 @@
-# FINTEL COMMAND v5
+# FINTEL COMMAND
 
-A live financial-intelligence terminal: global markets, rates, macro, positioning, filings and news on one screen.
+An open-source financial-intelligence terminal in the spirit of Bloomberg and Palantir: global markets, rates,
+macro, positioning, company fundamentals, insider networks, filings and news on one screen.
 React 18 · TypeScript 5 (strict) · Vite 5 · MapLibre GL. Every number on screen comes from a real source;
 when a source is down the panel says so instead of showing placeholder data.
 
@@ -21,6 +22,35 @@ button, top right) or put them in `.env`:
 | Finnhub | Earnings calendar with EPS beats/misses, IPO calendar | finnhub.io/register |
 | Groq | AI morning brief written only from the numbers on screen | console.groq.com/keys |
 
+## Two ways to run it
+
+| | Local (`npm run dev`) | Website (GitHub Pages) |
+|---|---|---|
+| Market data | live, every 60 s | snapshot refreshed about every 15 min |
+| Company pages | any SEC-registered company | the ~60 companies the site tracks |
+| Everything else | live | live where the source allows browsers (Treasury, CFTC, crypto, World Bank, Finnhub, Groq), otherwise snapshot |
+
+The website is built by `.github/workflows/deploy.yml`: on every push and about every 15 minutes it runs
+`scripts/snapshot.ts` (fetches Yahoo, FRED, SEC and news into `public/snap/`), builds with `VITE_STATIC=1`
+and deploys to Pages. Company files (financials + Form 4) are rebuilt once a day and carried between runs in
+the Actions cache. One-time setup: repo **Settings → Pages → Source: GitHub Actions**, and a repository
+secret **`SEC_USER_AGENT`** (a name and contact email, e.g. `FINTEL Command contact@example.com`) because the
+SEC asks automated tools to identify themselves.
+
+## Using it
+
+- **Command line**: press `/` or Ctrl/⌘+K. Type a ticker (`NVDA`) for its company page (DES) or chart (GP),
+  or a function: `WEI` indices, `YCRV` curve, `ECO` economy, `BTMM` Fed & liquidity, `COT` positioning,
+  `LINK` insider network, `CF` filings, `EVTS` earnings, `ALRT` alerts, `MAP`, `TOP` news.
+- **Company page** (`#/c/TICKER`): price chart, valuation (market cap, P/E, P/S from live price and SEC
+  shares/EPS), 5-year and quarterly financials with TTM, profile, insider transactions from Form 4, recent
+  filings and connections to other tracked companies.
+- **Link analysis**: companies and the officers, directors and 10% owners who connect them (board interlocks),
+  from Form 4 filings. Click to focus, double-click to open a company.
+- **Alerts**: price above/below or daily move beyond a %, with browser notifications while the tab is open.
+- **Layouts**: presets (Full terminal, Equities desk, Macro & rates, Cross-asset) or *Edit layout* to drag,
+  resize, hide and restore panels. Saved in your browser.
+
 ## Panels and where the data comes from
 
 | Panel | Source | Refresh |
@@ -37,10 +67,11 @@ button, top right) or put them in `.env`:
 | Headlines + headline tone | CNBC, MarketWatch, Federal Reserve, SEC RSS | 5 min |
 | Earnings & IPOs | Finnhub (key) | 1 h |
 | Morning brief | Groq, Llama 3.3 70B (key) | on demand |
+| Company pages, insider network | SEC EDGAR submissions, XBRL company facts, Form 4 | daily (site) / on open (local) |
+| Alerts | evaluated on each quote refresh | with quotes |
 
-Sources without browser (CORS) access go through the Vite dev/preview server relay (`/px/*` in
-`vite.config.ts`), so run it with `npm run dev` or `npm run build && npm run preview`. A static host on its
-own (e.g. GitHub Pages) can't serve the relayed panels.
+Locally, sources without browser (CORS) access go through the Vite dev/preview server relay (`/px/*` in
+`vite.config.ts`). The website reads those from the snapshot instead.
 
 ## Scripts
 
@@ -48,7 +79,9 @@ own (e.g. GitHub Pages) can't serve the relayed panels.
 npm run dev        # dev server with hot reload and the data relay
 npm run build      # strict typecheck + production build
 npm run preview    # serve the build, with the relay
-npm test           # unit tests for parsers, calculations and the data store
+npm run snapshot   # write the website data snapshot to public/snap (also builds the insider network for local use)
+npm run build:site # build the website version (reads public/snap)
+npm test           # unit tests for parsers, financial calculations, Form 4 and the data store
 npm run typecheck
 ```
 
@@ -62,11 +95,14 @@ src/
     yahoo.ts                 quotes (one batched source all panels share) and charts
     fred.ts                  FRED CSV, YoY / diff helpers
     sources.ts               Treasury, CFTC, crypto, World Bank, EDGAR, RSS, Finnhub, Groq
+    company.ts               SEC company data: financials + TTM, Form 4 parsing, insider network
     universe.ts              instrument lists, FOMC dates, map countries & chokepoints
     parsers.test.ts          unit tests
-  panels/                    markets.tsx, macro.tsx, flows.tsx, brief.tsx
+  lib/env.ts                 local / website / Node modes, snapshot loader
+  panels/                    markets, macro, flows, brief, company (DES/FA), network (LINK), alerts
   map/WorldMap.tsx
-  ui/                        kit.tsx (Panel, Spark, Chg, Tabs), charts.tsx, theme.ts, styles.css
+  ui/                        kit.tsx (Panel, Spark, Chg, Tabs), charts.tsx, Command.tsx, layout.tsx, theme.ts, styles.css
+scripts/snapshot.ts          website data job
 ```
 
 For research, not trading advice. Yahoo Finance data is delayed and for personal use.
