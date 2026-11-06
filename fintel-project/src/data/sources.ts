@@ -258,17 +258,19 @@ export const IPOS: SourceDef<IpoEvent[]> = {
 // ============================ Groq (optional key) for the written brief
 export interface PublishedBrief { text: string; at: number; model: string }
 export const BRIEF: SourceDef<PublishedBrief> = {
-  id: 'brief', label: 'Morning brief', provider: 'Groq · Llama 3.3 70B', every: 15 * 60_000,
+  id: 'brief', label: 'Morning brief', provider: 'Groq · gpt-oss-120b', every: 15 * 60_000,
   asOf: snapTime('brief.json'),
   fetch: () => snap<PublishedBrief>('brief.json'),
 };
+// Groq retired llama-3.3-70b-versatile on 2026-08-16; gpt-oss-120b is their recommended replacement.
+export const GROQ_MODEL = 'openai/gpt-oss-120b';
 export async function groqBrief(prompt: string, key = getKey('groq')): Promise<string> {
   if (!key) throw new Error('Add a Groq key in Settings');
   const res = await getJSON<{ choices: { message: { content: string } }[] }>('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST', timeout: 45000,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile', temperature: 0.2, max_tokens: 700,
+      model: GROQ_MODEL, temperature: 0.2, max_tokens: 2000, reasoning_effort: 'low', // reasoning tokens count toward max_tokens
       messages: [
         { role: 'system', content: 'You are a sell-side strategist writing a concise morning market brief. Use ONLY the numbers in the data provided; never invent figures, events or causes. If something is not in the data, do not mention it. Plain text, 5 short sections with headers: Overview, Equities, Rates & Fed, Commodities & FX, What to watch. Under 260 words.' },
         { role: 'user', content: prompt },

@@ -66,7 +66,7 @@ SEC asks automated tools to identify themselves.
 | SEC filings (8-K, Form 4, S-1, 13D) | SEC EDGAR live feed | 5 min |
 | Headlines + headline tone | CNBC, MarketWatch, Federal Reserve, SEC RSS | 5 min |
 | Earnings & IPOs | Finnhub (key) | 1 h |
-| Morning brief | Groq, Llama 3.3 70B (key) | on demand |
+| Morning brief | Groq, gpt-oss-120b (key) | on demand |
 | Company pages, insider network | SEC EDGAR submissions, XBRL company facts, Form 4 | daily (site) / on open (local) |
 | Alerts | evaluated on each quote refresh | with quotes |
 

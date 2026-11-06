@@ -6,7 +6,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chartQuotes, chartLive, SNAP_FILES } from '../src/data/yahoo';
 import { fredMany, DAILY_IDS, MACRO_IDS, FRED_SINCE } from '../src/data/fred';
-import { EDGAR_FORMS, edgarUrl, edgarSnapName, FEEDS, finnhubEarnings, finnhubIpos, groqBrief } from '../src/data/sources';
+import { EDGAR_FORMS, edgarUrl, edgarSnapName, FEEDS, finnhubEarnings, finnhubIpos, groqBrief, GROQ_MODEL } from '../src/data/sources';
 import { briefPrompt } from '../src/data/brief';
 import { buildCompany, buildNetwork, coSnapName, type CompanyData } from '../src/data/company';
 import { COMMODITIES, COUNTRIES, DEFAULT_WATCHLIST, FX, HEATMAP, INDICES, SECTORS, TAPE, VOL } from '../src/data/universe';
@@ -130,7 +130,7 @@ async function main() {
       if (!q) throw new Error('no quotes to write from');
       const fred = await read<Record<'daily' | 'macro', Record<string, import('../src/data/fred').Series>>>('fred.json');
       const text = await groqBrief(briefPrompt(q, fred?.daily ?? {}, fred?.macro ?? {}), process.env.GROQ_API_KEY);
-      await save('brief.json', { text, at: Date.now(), model: 'llama-3.3-70b-versatile' });
+      await save('brief.json', { text, at: Date.now(), model: GROQ_MODEL });
       return `${text.split(/\s+/).length} words`;
     });
   }

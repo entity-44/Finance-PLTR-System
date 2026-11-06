@@ -27,7 +27,7 @@ export function Brief() {
   const own = text ? { text, at } : null;
   const shown = own ?? (STATIC && pub.data ? { text: pub.data.text, at: pub.data.at } : null);
   const src: SourceState<unknown> = own || !STATIC
-    ? { label: 'AI brief', provider: 'Groq · Llama 3.3 70B, from on-screen data', status: !hasKey ? 'needs-key' : state === 'error' ? 'error' : 'live', updated: at, data: text || (hasKey ? '' : undefined), error: err }
+    ? { label: 'AI brief', provider: 'Groq · gpt-oss-120b, from on-screen data', status: !hasKey ? 'needs-key' : state === 'error' ? 'error' : 'live', updated: at, data: text || (hasKey ? '' : undefined), error: err }
     : pub;
   const go = async () => {
     setState('busy'); setErr('');
