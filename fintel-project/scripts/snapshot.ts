@@ -6,7 +6,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chartQuotes, chartLive, SNAP_FILES } from '../src/data/yahoo';
 import { fredMany, DAILY_IDS, MACRO_IDS, FRED_SINCE } from '../src/data/fred';
-import { EDGAR_FORMS, edgarUrl, edgarSnapName, FEEDS } from '../src/data/sources';
+import { EDGAR_FORMS, edgarUrl, edgarSnapName, FEEDS, finnhubEarnings, finnhubIpos } from '../src/data/sources';
 import { buildCompany, buildNetwork, coSnapName, type CompanyData } from '../src/data/company';
 import { COMMODITIES, COUNTRIES, DEFAULT_WATCHLIST, FX, HEATMAP, INDICES, SECTORS, TAPE, VOL } from '../src/data/universe';
 import { getText } from '../src/lib/http';
@@ -113,6 +113,12 @@ async function main() {
       await save('rss.json', out);
       return Object.keys(out).join(', ');
     });
+  }
+
+  if (want('finnhub') && process.env.FINNHUB_API_KEY) {
+    const k = process.env.FINNHUB_API_KEY;
+    await step('earnings', async () => { const e = await finnhubEarnings(k); await save('earnings.json', e); return `${e.upcoming.length} upcoming, ${e.reported.length} reported`; });
+    await step('ipos', async () => { const i = await finnhubIpos(k); await save('ipo.json', i); return `${i.length} IPOs`; });
   }
 
   if (want('companies')) {

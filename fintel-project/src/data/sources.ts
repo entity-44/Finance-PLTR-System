@@ -221,25 +221,38 @@ export function tone(title: string): number {
 const FH = 'https://finnhub.io/api/v1';
 export interface EarningsEvent { symbol: string; date: string; hour: string; epsEst: number | null; epsAct: number | null; revEst: number | null; revAct: number | null }
 export interface IpoEvent { symbol: string; name: string; date: string; exchange: string; price: string; shares: number | null; status: string }
+export async function finnhubEarnings(key: string): Promise<{ upcoming: EarningsEvent[]; reported: EarningsEvent[] }> {
+  const from = isoDaysAgo(7), to = isoDaysAgo(-7);
+  const j = await getJSON<{ earningsCalendar: any[] }>(`${FH}/calendar/earnings?from=${from}&to=${to}&token=${key}`);
+  const all: EarningsEvent[] = (j.earningsCalendar || []).map((e) => ({ symbol: e.symbol, date: e.date, hour: e.hour, epsEst: e.epsEstimate ?? null, epsAct: e.epsActual ?? null, revEst: e.revenueEstimate ?? null, revAct: e.revenueActual ?? null }));
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    upcoming: all.filter((e) => e.date >= today && e.epsAct == null).sort((a, b) => a.date.localeCompare(b.date) || (b.revEst ?? 0) - (a.revEst ?? 0)),
+    reported: all.filter((e) => e.epsAct != null && e.epsEst != null).sort((a, b) => b.date.localeCompare(a.date)),
+  };
+}
+export async function finnhubIpos(key: string): Promise<IpoEvent[]> {
+  const j = await getJSON<{ ipoCalendar: any[] }>(`${FH}/calendar/ipo?from=${isoDaysAgo(14)}&to=${isoDaysAgo(-30)}&token=${key}`);
+  return (j.ipoCalendar || []).map((e) => ({ symbol: e.symbol || '', name: e.name, date: e.date, exchange: e.exchange || '', price: e.price || '', shares: e.numberOfShares ?? null, status: e.status || '' })).sort((a, b) => b.date.localeCompare(a.date));
+}
+/** On the website the GitHub job publishes the calendars (its key stays secret); a visitor's own key is the fallback. */
+async function viaSiteOrKey<T>(file: string, live: (k: string) => Promise<T>): Promise<T> {
+  if (STATIC) {
+    try { return await snap<T>(file); } catch { /* not published: fall through to the visitor's key */ }
+  }
+  const k = getKey('finnhub');
+  if (!k) throw new Error('Add a free Finnhub key in Settings');
+  return live(k);
+}
 export const EARNINGS: SourceDef<{ upcoming: EarningsEvent[]; reported: EarningsEvent[] }> = {
-  id: 'finnhub:earnings', label: 'Earnings calendar', provider: 'Finnhub', every: 60 * 60_000, requires: 'finnhub',
-  fetch: async () => {
-    const from = isoDaysAgo(7), to = isoDaysAgo(-7);
-    const j = await getJSON<{ earningsCalendar: any[] }>(`${FH}/calendar/earnings?from=${from}&to=${to}&token=${getKey('finnhub')}`);
-    const all: EarningsEvent[] = (j.earningsCalendar || []).map((e) => ({ symbol: e.symbol, date: e.date, hour: e.hour, epsEst: e.epsEstimate ?? null, epsAct: e.epsActual ?? null, revEst: e.revenueEstimate ?? null, revAct: e.revenueActual ?? null }));
-    const today = new Date().toISOString().slice(0, 10);
-    return {
-      upcoming: all.filter((e) => e.date >= today && e.epsAct == null).sort((a, b) => a.date.localeCompare(b.date) || (b.revEst ?? 0) - (a.revEst ?? 0)),
-      reported: all.filter((e) => e.epsAct != null && e.epsEst != null).sort((a, b) => b.date.localeCompare(a.date)),
-    };
-  },
+  id: 'finnhub:earnings', label: 'Earnings calendar', provider: 'Finnhub', every: 60 * 60_000, requires: STATIC ? undefined : 'finnhub',
+  asOf: STATIC ? snapTime('earnings.json') : undefined,
+  fetch: () => viaSiteOrKey('earnings.json', finnhubEarnings),
 };
 export const IPOS: SourceDef<IpoEvent[]> = {
-  id: 'finnhub:ipo', label: 'IPO calendar', provider: 'Finnhub', every: 6 * 60 * 60_000, requires: 'finnhub',
-  fetch: async () => {
-    const j = await getJSON<{ ipoCalendar: any[] }>(`${FH}/calendar/ipo?from=${isoDaysAgo(14)}&to=${isoDaysAgo(-30)}&token=${getKey('finnhub')}`);
-    return (j.ipoCalendar || []).map((e) => ({ symbol: e.symbol || '', name: e.name, date: e.date, exchange: e.exchange || '', price: e.price || '', shares: e.numberOfShares ?? null, status: e.status || '' })).sort((a, b) => b.date.localeCompare(a.date));
-  },
+  id: 'finnhub:ipo', label: 'IPO calendar', provider: 'Finnhub', every: 6 * 60 * 60_000, requires: STATIC ? undefined : 'finnhub',
+  asOf: STATIC ? snapTime('ipo.json') : undefined,
+  fetch: () => viaSiteOrKey('ipo.json', finnhubIpos),
 };
 
 // ============================ Groq (optional key) for the written brief

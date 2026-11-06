@@ -51,6 +51,7 @@ jobs:
         env:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
           COMPANIES_MAX_AGE_H: '20'
       - name: Build
         run: npx vite build --base=/${{ github.event.repository.name }}/
