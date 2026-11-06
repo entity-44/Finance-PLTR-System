@@ -93,7 +93,7 @@ export function News() {
 }
 
 // ---------------------------------------------------------------- SEC filings
-const FORMS: [string, string][] = [['8-K', '8-K'], ['4', 'Insider (4)'], ['S-1', 'S-1'], ['SC 13D', '13D']];
+const FORMS: [string, string][] = [['8-K', '8-K'], ['4', 'Insider (4)'], ['S-1', 'S-1'], ['SCHEDULE 13D', '13D']];
 export function Filings() {
   const [form, setForm] = useState('8-K');
   const def = sourceFor('sec:' + form, () => edgarSource(form));

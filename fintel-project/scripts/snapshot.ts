@@ -144,7 +144,7 @@ async function main() {
           const old = JSON.parse(await readFile(file, 'utf8')) as { generated: number };
           if (Date.now() - old.generated < DAY_MS) { kept++; continue; }
         } catch { /* not cached yet */ }
-        try { await save(coSnapName(t), await buildCompany(t)); done++; await new Promise((r) => setTimeout(r, 400)); }
+        try { await save(coSnapName(t), await buildCompany(t)); done++; }
         catch (e) { failed++; log('  company', t, (e as Error).message); }
       }
       if (!done && !kept) throw new Error(`all ${failed} failed`);

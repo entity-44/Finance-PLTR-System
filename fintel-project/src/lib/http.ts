@@ -13,7 +13,29 @@ function nodeHeaders(url: string): Record<string, string> {
   return { 'User-Agent': BROWSER_UA, Accept: 'application/json, text/plain, */*', 'Accept-Language': 'en-US,en;q=0.9', Referer: 'https://finance.yahoo.com/' };
 }
 
+// The SEC allows ~10 requests/second per client. In the snapshot job, space every sec.gov request and
+// retry rate-limit replies, so building many company pages never trips the limit.
+let secNext = 0;
+async function secPace() {
+  const now = Date.now(), wait = Math.max(0, secNext - now);
+  secNext = Math.max(now, secNext) + 140;
+  if (wait) await new Promise((r) => setTimeout(r, wait));
+}
+
 export async function getText(url: string, init: RequestInit & { timeout?: number } = {}): Promise<string> {
+  if (typeof window === 'undefined' && /sec\.gov/.test(url)) {
+    for (let attempt = 0; ; attempt++) {
+      await secPace();
+      try { return await fetchText(url, init); } catch (e) {
+        if (!(e instanceof HttpError && e.status === 429) || attempt >= 3) throw e;
+        secNext = Date.now() + 5000 * (attempt + 1); // back off everyone
+      }
+    }
+  }
+  return fetchText(url, init);
+}
+
+async function fetchText(url: string, init: RequestInit & { timeout?: number } = {}): Promise<string> {
   const { timeout = 15000, ...rest } = init;
   rest.headers = { ...nodeHeaders(url), ...(rest.headers as Record<string, string> | undefined) };
   const ctl = new AbortController();

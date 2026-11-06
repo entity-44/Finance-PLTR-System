@@ -160,7 +160,7 @@ export function parseEdgarAtom(xml: string): Filing[] {
     return { form: m?.[1] || e.querySelector('category')?.getAttribute('term') || '', company: m?.[2] || title, cik: m?.[3] || '', when: e.querySelector('updated')?.textContent || '', link: e.querySelector('link')?.getAttribute('href') || '', items };
   });
 }
-export const EDGAR_FORMS = ['8-K', '4', 'S-1', 'SC 13D'];
+export const EDGAR_FORMS = ['8-K', '4', 'S-1', 'SCHEDULE 13D'];
 export const edgarUrl = (form: string) => `${HOST.sec}/cgi-bin/browse-edgar?action=getcurrent&type=${encodeURIComponent(form)}&company=&dateb=&owner=include&start=0&count=40&output=atom`;
 export const edgarSnapName = (form: string) => `sec-${form.replace(/\W+/g, '_')}.json`;
 export function edgarSource(form: string): SourceDef<Filing[]> {

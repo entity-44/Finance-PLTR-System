@@ -177,7 +177,7 @@ export async function buildCompany(ticker: string, form4Limit = 20): Promise<Com
       filings.push({ form, date: r.filingDate[i], desc: r.primaryDocDescription[i] || '', items: r.items[i] || '', link: archive(hit.cik, r.accessionNumber[i], r.primaryDocument[i]) });
     }
   }
-  const parsed = await pool(f4, NODE ? 4 : 3, async (x) => parseForm4(await getText(x.url), x.link));
+  const parsed = await pool(f4, NODE ? 2 : 3, async (x) => parseForm4(await getText(x.url), x.link));
   const insiders: InsiderTx[] = [], peopleMap = new Map<string, Person>();
   for (const p of parsed) {
     if (!p) continue;
