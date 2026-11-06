@@ -74,7 +74,7 @@ export async function sparkLive(symbols: string[], range = '1d', interval = '5m'
 }
 
 // Website snapshot files written by scripts/snapshot.ts
-export const SNAP_FILES = { '1d': 'quotes-1d.json', '5d': 'quotes-5d.json', '1y': 'quotes-1y.json', '5y': 'quotes-5y.json' } as const;
+export const SNAP_FILES = { '1d': 'quotes-1d.json', '1y': 'quotes-1y.json', '5y': 'quotes-5y.json' } as const;
 const pickSyms = (all: Record<string, Quote>, syms: string[]) => Object.fromEntries(syms.filter((s) => all[s]).map((s) => [s, all[s]]));
 
 /** Recompute change over the last n points of a daily series (for 1M / 6M windows cut from the 1-year file). */
@@ -111,14 +111,35 @@ export async function chartLive(symbol: string, range: string, interval: string)
 export async function chart(symbol: string, range: string, interval: string): Promise<Bars> {
   if (!STATIC) return chartLive(symbol, range, interval);
   if (range === 'max') { const b = await snap<Bars>(`chart-${symbol.replace(/[^A-Za-z0-9]/g, '_')}-max.json`); return b; }
-  const file = range === '1d' ? SNAP_FILES['1d'] : range === '5d' ? SNAP_FILES['5d'] : range === '5y' ? SNAP_FILES['5y'] : SNAP_FILES['1y'];
+  const file = range === '1d' ? SNAP_FILES['1d'] : range === '5y' ? SNAP_FILES['5y'] : SNAP_FILES['1y'];
   const all = await snap<Record<string, Quote>>(file);
   let q = all[symbol];
   if (!q) throw new Error(`${symbol} isn't tracked on the website (run locally for any ticker)`);
-  if (range === '1mo') q = window(q, 22); else if (range === '6mo') q = window(q, 127);
+  // the website keeps daily bars, so 5D shows the last six daily closes
+  if (range === '5d') q = window(q, 6); else if (range === '1mo') q = window(q, 22); else if (range === '6mo') q = window(q, 127);
   return { symbol, name: q.name, currency: q.currency, t: q.t ?? [], c: q.spark, prevClose: q.prev };
 }
-export const chartAsOf = (range: string) => (STATIC ? snapTime(range === '1d' ? SNAP_FILES['1d'] : range === '5d' ? SNAP_FILES['5d'] : range === '5y' ? SNAP_FILES['5y'] : SNAP_FILES['1y']) : undefined);
+export const chartAsOf = (range: string) => (STATIC ? snapTime(range === '1d' ? SNAP_FILES['1d'] : range === '5y' ? SNAP_FILES['5y'] : SNAP_FILES['1y']) : undefined);
+
+/** One symbol at a time via the chart endpoint (what works from cloud servers), with backoff on 429. */
+export async function chartQuotes(symbols: string[], range: string, interval: string, gapMs = 250): Promise<Record<string, Quote>> {
+  const out: Record<string, Quote> = {};
+  for (const s of symbols) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const j = await getJSON<ChartResponse>(`${HOST.yahoo}/v8/finance/chart/${encodeURIComponent(s)}?range=${range}&interval=${interval}&includePrePost=false`, { timeout: 20000 });
+        const r = j.chart?.result?.[0];
+        if (r) Object.assign(out, parseSpark({ spark: { error: null, result: [{ symbol: s, response: [r] }] } } as SparkResponse, range === '1d', true));
+        break;
+      } catch (e) {
+        if (!/429/.test(String(e))) break;
+        await new Promise((res) => setTimeout(res, 3000 * (attempt + 1)));
+      }
+    }
+    await new Promise((res) => setTimeout(res, gapMs));
+  }
+  return out;
+}
 
 // ---- shared intraday quotes: every panel registers the symbols it shows; one source fetches them all ----
 const wanted = new Set<string>();

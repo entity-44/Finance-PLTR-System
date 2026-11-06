@@ -34,10 +34,14 @@ jobs:
       - name: Today
         id: day
         run: echo "d=$(date -u +%F)" >> "$GITHUB_OUTPUT"
-      # Company files (SEC financials + Form 4) are rebuilt once a day; the cache carries them between runs.
+      # Daily data (company files, 1-year/5-year price history) is rebuilt once a day; the cache carries it between runs.
       - uses: actions/cache@v4
         with:
-          path: fintel-project/public/snap/co
+          path: |
+            fintel-project/public/snap/co
+            fintel-project/public/snap/quotes-1y.json
+            fintel-project/public/snap/quotes-5y.json
+            fintel-project/public/snap/chart-_GSPC-max.json
           key: companies-${{ steps.day.outputs.d }}-${{ github.run_id }}
           restore-keys: |
             companies-${{ steps.day.outputs.d }}-
@@ -46,6 +50,7 @@ jobs:
         run: npx vite-node scripts/snapshot.ts
         env:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           COMPANIES_MAX_AGE_H: '20'
       - name: Build
         run: npx vite build --base=/${{ github.event.repository.name }}/

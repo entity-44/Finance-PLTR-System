@@ -1,6 +1,6 @@
-import { getText, pool } from '@/lib/http';
+import { getJSON, getText, pool } from '@/lib/http';
 import { isoDaysAgo } from '@/lib/format';
-import { HOST, snap, snapTime, STATIC } from '@/lib/env';
+import { HOST, NODE, snap, snapTime, STATIC } from '@/lib/env';
 import type { SourceDef } from './store';
 
 // FRED (Federal Reserve Bank of St. Louis) public CSV download: no key needed. Reached through /px/fred.
@@ -24,13 +24,19 @@ export function parseFredCsv(csv: string): Series {
 }
 
 export async function fredSeries(id: string, sinceDays: number): Promise<Series> {
-  const csv = await getText(`${HOST.fred}/graph/fredgraph.csv?id=${id}&cosd=${isoDaysAgo(sinceDays)}`);
+  // The snapshot job can use the official FRED API (FRED_API_KEY secret); everything else uses the public CSV.
+  const apiKey = NODE ? (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.FRED_API_KEY : undefined;
+  if (apiKey) {
+    const j = await getJSON<{ observations: { date: string; value: string }[] }>(`https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${apiKey}&file_type=json&observation_start=${isoDaysAgo(sinceDays)}`, { timeout: 30000 });
+    return j.observations.filter((o) => o.value !== '.' && o.value !== '').map((o) => ({ d: o.date, v: Number(o.value) })).filter((o) => Number.isFinite(o.v));
+  }
+  const csv = await getText(`${HOST.fred}/graph/fredgraph.csv?id=${id}&cosd=${isoDaysAgo(sinceDays)}`, { timeout: NODE ? 45000 : 15000 });
   if (!csv.startsWith('observation_date') && !csv.startsWith('DATE')) throw new Error(`FRED ${id}: unexpected response`);
   return parseFredCsv(csv);
 }
 
 export async function fredMany(ids: string[], sinceDays: number): Promise<Record<string, Series>> {
-  const res = await pool(ids, 6, (id) => fredSeries(id, sinceDays));
+  const res = await pool(ids, NODE ? 3 : 6, (id) => fredSeries(id, sinceDays));
   const out: Record<string, Series> = {};
   ids.forEach((id, i) => { if (res[i]?.length) out[id] = res[i]!; });
   return out;

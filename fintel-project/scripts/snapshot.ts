@@ -4,7 +4,7 @@
    Usage: npx vite-node scripts/snapshot.ts [--only=quotes,fred,sec,rss,companies]                          */
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { sparkLive, chartLive, SNAP_FILES } from '../src/data/yahoo';
+import { chartQuotes, chartLive, SNAP_FILES } from '../src/data/yahoo';
 import { fredMany, DAILY_IDS, MACRO_IDS, FRED_SINCE } from '../src/data/fred';
 import { EDGAR_FORMS, edgarUrl, edgarSnapName, FEEDS } from '../src/data/sources';
 import { buildCompany, buildNetwork, coSnapName, type CompanyData } from '../src/data/company';
@@ -21,6 +21,11 @@ async function save(name: string, data: unknown) {
   const file = path.join(OUT, name);
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, JSON.stringify({ generated: Date.now(), data }));
+}
+const DAY_MS = Number(process.env.COMPANIES_MAX_AGE_H ?? 20) * 3600_000;
+/** True if a snapshot file exists and is younger than the daily refresh age. */
+async function fresh(name: string) {
+  try { return Date.now() - (JSON.parse(await readFile(path.join(OUT, name), 'utf8')) as { generated: number }).generated < DAY_MS; } catch { return false; }
 }
 async function step(name: string, fn: () => Promise<string>) {
   try { const msg = await fn(); report[name] = 'ok · ' + msg; log('✓', name, msg); }
@@ -40,15 +45,25 @@ async function main() {
 
   if (want('quotes')) {
     await step('quotes', async () => {
-      const [d1, d5, y1, y5] = await Promise.all([
-        sparkLive(SYMBOLS, '1d', '5m', true), sparkLive(SYMBOLS, '5d', '30m', true),
-        sparkLive(SYMBOLS, '1y', '1d', true), sparkLive(SYMBOLS, '5y', '1wk', true),
-      ]);
+      const d1 = await chartQuotes(SYMBOLS, '1d', '5m');
       if (Object.keys(d1).length < SYMBOLS.length * 0.5) throw new Error(`only ${Object.keys(d1).length}/${SYMBOLS.length} symbols returned`);
-      await Promise.all([save(SNAP_FILES['1d'], d1), save(SNAP_FILES['5d'], d5), save(SNAP_FILES['1y'], y1), save(SNAP_FILES['5y'], y5)]);
+      await save(SNAP_FILES['1d'], d1);
       return `${Object.keys(d1).length}/${SYMBOLS.length} symbols`;
     });
-    await step('gspc-history', async () => { const b = await chartLive('^GSPC', 'max', '1mo'); await save('chart-_GSPC-max.json', b); return `${b.c.length} months`; });
+    // Longer histories change slowly: rebuild them once a day (the workflow caches them between runs).
+    for (const [file, range, interval] of [[SNAP_FILES['1y'], '1y', '1d'], [SNAP_FILES['5y'], '5y', '1wk']] as const) {
+      await step('history ' + range, async () => {
+        if (await fresh(file)) return 'cached';
+        const q = await chartQuotes(SYMBOLS, range, interval);
+        if (Object.keys(q).length < SYMBOLS.length * 0.5) throw new Error(`only ${Object.keys(q).length} symbols`);
+        await save(file, q);
+        return `${Object.keys(q).length} symbols`;
+      });
+    }
+    await step('gspc-history', async () => {
+      if (await fresh('chart-_GSPC-max.json')) return 'cached';
+      const b = await chartLive('^GSPC', 'max', '1mo'); await save('chart-_GSPC-max.json', b); return `${b.c.length} months`;
+    });
   }
 
   if (want('fred')) {
@@ -79,18 +94,18 @@ async function main() {
 
   if (want('companies')) {
     await step('companies', async () => {
-      const maxAge = Number(process.env.COMPANIES_MAX_AGE_H ?? 20) * 3600_000;
-      let fresh = 0, kept = 0, failed = 0;
+      let done = 0, kept = 0, failed = 0;
       for (const t of COMPANIES) {
         const file = path.join(OUT, coSnapName(t));
         try {
           const old = JSON.parse(await readFile(file, 'utf8')) as { generated: number };
-          if (Date.now() - old.generated < maxAge) { kept++; continue; }
+          if (Date.now() - old.generated < DAY_MS) { kept++; continue; }
         } catch { /* not cached yet */ }
-        try { await save(coSnapName(t), await buildCompany(t)); fresh++; await new Promise((r) => setTimeout(r, 400)); }
+        try { await save(coSnapName(t), await buildCompany(t)); done++; await new Promise((r) => setTimeout(r, 400)); }
         catch (e) { failed++; log('  company', t, (e as Error).message); }
       }
-      return `${fresh} refreshed, ${kept} cached, ${failed} failed`;
+      if (!done && !kept) throw new Error(`all ${failed} failed`);
+      return `${done} refreshed, ${kept} cached, ${failed} failed`;
     });
   }
 
