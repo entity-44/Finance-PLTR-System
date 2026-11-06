@@ -124,16 +124,20 @@ export const chartAsOf = (range: string) => (STATIC ? snapTime(range === '1d' ? 
 /** One symbol at a time via the chart endpoint (what works from cloud servers), with backoff on 429. */
 export async function chartQuotes(symbols: string[], range: string, interval: string, gapMs = 250): Promise<Record<string, Quote>> {
   const out: Record<string, Quote> = {};
+  let limited = 0; // consecutive symbols that stayed rate-limited
   for (const s of symbols) {
+    if (limited >= 6) throw new Error(`Yahoo rate-limited this server (${Object.keys(out).length}/${symbols.length} symbols fetched)`);
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const j = await getJSON<ChartResponse>(`${HOST.yahoo}/v8/finance/chart/${encodeURIComponent(s)}?range=${range}&interval=${interval}&includePrePost=false`, { timeout: 20000 });
         const r = j.chart?.result?.[0];
         if (r) Object.assign(out, parseSpark({ spark: { error: null, result: [{ symbol: s, response: [r] }] } } as SparkResponse, range === '1d', true));
+        limited = 0;
         break;
       } catch (e) {
         if (!/429/.test(String(e))) break;
-        await new Promise((res) => setTimeout(res, 3000 * (attempt + 1)));
+        if (attempt === 2) limited++;
+        await new Promise((res) => setTimeout(res, 2000 * (attempt + 1)));
       }
     }
     await new Promise((res) => setTimeout(res, gapMs));
