@@ -11,7 +11,16 @@ import { heat } from '@/ui/theme';
 
 // Keyless dark basemap (CARTO). If a Protomaps key is set in .env (VITE_PROTOMAPS_KEY), its style is used instead.
 const PM_KEY = import.meta.env.VITE_PROTOMAPS_KEY as string | undefined;
-const STYLE = PM_KEY ? `https://api.protomaps.com/styles/v2/black.json?key=${PM_KEY}` : 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+const DARK = PM_KEY ? `https://api.protomaps.com/styles/v2/black.json?key=${PM_KEY}` : 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+// Satellite: Esri World Imagery (free with attribution), toned down so markers and cards stay legible.
+const SAT: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: { sat: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 17, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics' } },
+  layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#0c0c0c' } }, { id: 'sat', type: 'raster', source: 'sat', paint: { 'raster-saturation': -0.45, 'raster-brightness-max': 0.62, 'raster-contrast': 0.12 } }],
+};
+type Base = 'sat' | 'dark';
+const baseKey = 'fintel.mapbase';
+const savedBase = (): Base => { try { return localStorage.getItem(baseKey) === 'dark' ? 'dark' : 'sat'; } catch { return 'sat'; } };
 const WB = worldBankSource(COUNTRIES.map((c) => c.iso3).filter((c) => c !== 'TWN'));
 
 export function WorldMap() {
@@ -24,13 +33,14 @@ export function WorldMap() {
   const [sel, setSel] = useState<Country | null>(COUNTRIES[0]);
   const [showCp, setShowCp] = useState(true);
   const [mapErr, setMapErr] = useState('');
+  const [base, setBase] = useState<Base>(savedBase);
   const cpMarkers = useRef<maplibregl.Marker[]>([]);
 
   useEffect(() => {
     if (!box.current) return;
     let m: maplibregl.Map;
     try {
-      m = new maplibregl.Map({ container: box.current, style: STYLE, center: [20, 25], zoom: 1.15, minZoom: 0.8, maxZoom: 7, attributionControl: { compact: true }, renderWorldCopies: false, dragRotate: false });
+      m = new maplibregl.Map({ container: box.current, style: base === 'sat' ? SAT : DARK, center: [20, 25], zoom: 1.15, minZoom: 0.8, maxZoom: 7, attributionControl: { compact: true }, renderWorldCopies: false, dragRotate: false });
     } catch (e) { setMapErr('Map needs WebGL, which this browser has turned off.'); return; }
     map.current = m;
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
@@ -51,7 +61,9 @@ export function WorldMap() {
     const ro = new ResizeObserver(() => m.resize());
     ro.observe(box.current);
     return () => { ro.disconnect(); m.remove(); markers.current.clear(); cpMarkers.current = []; };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const switchBase = (b: Base) => { setBase(b); try { localStorage.setItem(baseKey, b); } catch { /* private mode */ } map.current?.setStyle(b === 'sat' ? SAT : DARK); setMapErr(''); };
 
   // colour markers by the local index's daily change (or currency if there's no index)
   useEffect(() => {
@@ -73,8 +85,12 @@ export function WorldMap() {
       <div className="mapwrap">
         <div ref={box} className="mapcanvas" />
         {mapErr && <div className="maperr" role="status">{mapErr}</div>}
-        <div className="maplayers"><button className="btn" onClick={() => setShowCp((v) => !v)} aria-pressed={showCp}>{showCp ? '◆ Chokepoints on' : '◇ Chokepoints off'}</button></div>
-        <div className="maplegend"><span>Index today</span><span style={{ width: 90, height: 6, borderRadius: 3, background: 'linear-gradient(90deg,#dc2626,#1a1a1d,#16a34a)', display: 'inline-block' }} /><span>−2% … +2%</span></div>
+        <div className="maplayers">
+          <button className="btn" onClick={() => switchBase('sat')} aria-pressed={base === 'sat'}>Satellite</button>
+          <button className="btn" onClick={() => switchBase('dark')} aria-pressed={base === 'dark'}>Streets</button>
+          <button className="btn" onClick={() => setShowCp((v) => !v)} aria-pressed={showCp}>Chokepoints</button>
+        </div>
+        <div className="maplegend"><span>Index today</span><span style={{ width: 90, height: 6, borderRadius: 3, background: 'linear-gradient(90deg,#cd3a34,#2a2a2a,#349652)', display: 'inline-block' }} /><span>−2% … +2%</span></div>
         {sel && (
           <aside className="mapside" aria-live="polite">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
@@ -87,7 +103,7 @@ export function WorldMap() {
                 {sel.fx && <tr><td>{sel.fx[1]}</td><td>{fq ? price(fq.price) : '—'}</td><td><Chg v={fq?.changePct} /></td></tr>}
               </tbody>
             </table>
-            <div className="mono faint" style={{ fontSize: 9.5, letterSpacing: '.1em', margin: '12px 0 2px' }}>FUNDAMENTALS · WORLD BANK</div>
+            <div className="faint" style={{ fontSize: 12, margin: '14px 0 2px' }}>Fundamentals · World Bank</div>
             {sel.iso3 === 'TWN' ? <p className="dim" style={{ fontSize: 11 }}>The World Bank doesn't publish data for Taiwan.</p> : (
               <table className="t"><tbody>
                 {WB_INDICATORS.map((ind) => {

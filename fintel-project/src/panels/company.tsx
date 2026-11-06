@@ -4,7 +4,7 @@ import { useSource } from '@/data/store';
 import { useQuotes } from '@/data/yahoo';
 import { big, dateLabel, isNum, num, pct, price } from '@/lib/format';
 import { STATIC } from '@/lib/env';
-import { Chg, Panel, Tabs } from '@/ui/kit';
+import { Chg, Panel, Tabs, Big } from '@/ui/kit';
 import { LineChart } from '@/ui/charts';
 import { chartSource, RANGES } from './markets';
 
@@ -39,7 +39,7 @@ function Stats({ c, px }: { c: CompanyData; px: number | null }) {
     ['Cash', M.cash?.latest ? '$' + big(M.cash.latest.val) : '—', M.cash?.latest ? dateLabel(M.cash.latest.end) : ''],
     ['Long-term debt', M.debt?.latest ? '$' + big(M.debt.latest.val) : '—'],
   ];
-  return <div className="kpis">{cells.map(([k, v, s]) => <div className="kpi" key={k}><span>{k}</span><b style={{ fontSize: 15 }}>{v}</b>{s && <small>{s}</small>}</div>)}</div>;
+  return <div className="kpis">{cells.map(([k, v, s]) => <div className="kpi" key={k}><span>{k}</span><b><Big>{v}</Big></b>{s && <small>{s}</small>}</div>)}</div>;
 }
 
 function Financials({ c }: { c: CompanyData }) {
@@ -124,9 +124,9 @@ export function CompanyPage({ ticker, onClose, onTicker }: { ticker: string; onC
         <Panel title="Insider transactions (Form 4)" src={co} span="c8" note={c ? `Last ${c.insiders.length} transactions from recent Form 4 filings. Open-market buys (P) and sales (S) are the signal; awards, exercises and tax withholding are routine.` : undefined}>
           {c && <>
             <div className="kpis">
-              <div className="kpi"><span>Open-market buys</span><b className="up">{buys.length}</b><small>${big(val(buys))}</small></div>
-              <div className="kpi"><span>Open-market sales</span><b className="down">{sells.length}</b><small>${big(val(sells))}</small></div>
-              <div className="kpi"><span>Latest filing</span><b style={{ fontSize: 14 }}>{c.insiders[0] ? dateLabel(c.insiders[0].date) : '—'}</b></div>
+              <div className="kpi"><span>Open-market buys</span><b className="up"><Big>{buys.length}</Big></b><small>${big(val(buys))}</small></div>
+              <div className="kpi"><span>Open-market sales</span><b className="down"><Big>{sells.length}</Big></b><small>${big(val(sells))}</small></div>
+              <div className="kpi"><span>Latest filing</span><b style={{ fontSize: 14 }}><Big>{c.insiders[0] ? dateLabel(c.insiders[0].date) : '—'}</Big></b></div>
             </div>
             <div style={{ maxHeight: 360, overflow: 'auto' }}>
               <table className="t">

@@ -4,7 +4,7 @@ import { snapTime, STATIC } from '@/lib/env';
 import { sourceFor, useSource } from '@/data/store';
 import { COMMODITIES, DEFAULT_WATCHLIST, FX, HEATMAP, INDICES, SECTORS, TAPE, VOL } from '@/data/universe';
 import { isNum, num, pct, price } from '@/lib/format';
-import { Chg, Panel, RangeBar, Spark, Tabs } from '@/ui/kit';
+import { Chg, Panel, RangeBar, Spark, Tabs, Big } from '@/ui/kit';
 import { heat, T } from '@/ui/theme';
 import { LineChart } from '@/ui/charts';
 
@@ -113,9 +113,9 @@ export function Volatility() {
   return (
     <Panel id="p-vol" title="Volatility" src={q} span="c4" note="Term structure: VIX ÷ VIX3M above 1 (backwardation) usually means near-term stress.">
       <div className="kpis">
-        <div className="kpi"><span>VIX regime</span><b>{regime}</b><small>{isNum(vix) ? num(vix) : '—'}</small></div>
-        <div className="kpi"><span>VIX / VIX3M</span><b className={isNum(ratio) && ratio > 1 ? 'down' : ''}>{isNum(ratio) ? ratio.toFixed(2) : '—'}</b><small>{isNum(ratio) ? (ratio > 1 ? 'backwardation' : 'contango') : ''}</small></div>
-        <div className="kpi"><span>9D − 30D</span><b>{isNum(v9) && isNum(vix) ? (v9 - vix > 0 ? '+' : '') + (v9 - vix).toFixed(2) : '—'}</b><small>front-end spread</small></div>
+        <div className="kpi"><span>VIX regime</span><b><Big>{regime}</Big></b><small>{isNum(vix) ? num(vix) : '—'}</small></div>
+        <div className="kpi"><span>VIX / VIX3M</span><b className={isNum(ratio) && ratio > 1 ? 'down' : ''}><Big>{isNum(ratio) ? ratio.toFixed(2) : '—'}</Big></b><small>{isNum(ratio) ? (ratio > 1 ? 'backwardation' : 'contango') : ''}</small></div>
+        <div className="kpi"><span>9D − 30D</span><b><Big>{isNum(v9) && isNum(vix) ? (v9 - vix > 0 ? '+' : '') + (v9 - vix).toFixed(2) : '—'}</Big></b><small>front-end spread</small></div>
       </div>
       <table className="t">
         <thead><tr><th>Gauge</th><th>Level</th><th>Chg</th><th>Today</th></tr></thead>
@@ -138,9 +138,9 @@ export function Commodities() {
   return (
     <Panel id="p-cmdty" title="Commodities" src={q} span="c4" note="Front-month futures. Copper/gold uses copper $/lb ÷ gold $/oz × 1000.">
       <div className="kpis">
-        <div className="kpi"><span>Brent − WTI</span><b>{isNum(wti) && isNum(brent) ? '$' + (brent - wti).toFixed(2) : '—'}</b></div>
-        <div className="kpi"><span>Gold / silver</span><b>{isNum(gold) && isNum(silver) ? (gold / silver).toFixed(1) : '—'}</b></div>
-        <div className="kpi"><span>Copper / gold</span><b>{isNum(gold) && isNum(cu) ? ((cu / gold) * 1000).toFixed(2) : '—'}</b></div>
+        <div className="kpi"><span>Brent − WTI</span><b><Big>{isNum(wti) && isNum(brent) ? '$' + (brent - wti).toFixed(2) : '—'}</Big></b></div>
+        <div className="kpi"><span>Gold / silver</span><b><Big>{isNum(gold) && isNum(silver) ? (gold / silver).toFixed(1) : '—'}</Big></b></div>
+        <div className="kpi"><span>Copper / gold</span><b><Big>{isNum(gold) && isNum(cu) ? ((cu / gold) * 1000).toFixed(2) : '—'}</Big></b></div>
       </div>
       <table className="t">
         <thead><tr><th>Contract</th><th>Last</th><th>Chg</th><th>Today</th><th className="hs">52W</th></tr></thead>
@@ -253,9 +253,9 @@ export function Watchlist({ sel, setSel }: { sel: string; setSel: (s: string) =>
             ? <LineChart t={bars.t} v={bars.c} h={210} base={range === '1D' ? x?.prev ?? bars.prevClose : undefined} intraday={range === '1D' || range === '5D'} />
             : <div className="empty">{c.status === 'error' ? `No chart: ${c.error}` : 'Loading chart…'}</div>}
           {x && <div className="kpis" style={{ marginTop: 8 }}>
-            <div className="kpi"><span>Day range</span><b style={{ fontSize: 13 }}>{price(x.dayLow)} – {price(x.dayHigh)}</b></div>
-            <div className="kpi"><span>52-week range</span><b style={{ fontSize: 13 }}>{price(x.yearLow)} – {price(x.yearHigh)}</b></div>
-            <div className="kpi"><span>From 52W high</span><b style={{ fontSize: 13 }}><Chg v={isNum(x.yearHigh) ? (x.price / x.yearHigh - 1) * 100 : null} /></b></div>
+            <div className="kpi"><span>Day range</span><b style={{ fontSize: 13 }}><Big>{price(x.dayLow)} – {price(x.dayHigh)}</Big></b></div>
+            <div className="kpi"><span>52-week range</span><b style={{ fontSize: 13 }}><Big>{price(x.yearLow)} – {price(x.yearHigh)}</Big></b></div>
+            <div className="kpi"><span>From 52W high</span><b style={{ fontSize: 13 }}><Big><Chg v={isNum(x.yearHigh) ? (x.price / x.yearHigh - 1) * 100 : null} /></Big></b></div>
           </div>}
         </div>
       </div>
@@ -280,9 +280,9 @@ export function History() {
   return (
     <Panel id="p-hist" title="S&P 500 by calendar year" src={h} span="c4" note="Price return (excludes dividends), from monthly closes. Latest year is year-to-date.">
       <div className="kpis">
-        <div className="kpi"><span>Up years (last {years.length})</span><b>{years.length ? `${pos} / ${years.length}` : '—'}</b></div>
-        <div className="kpi"><span>Avg yearly return</span><b><Chg v={years.length ? years.reduce((a, b) => a + b.r, 0) / years.length : null} /></b></div>
-        <div className="kpi"><span>From record high</span><b><Chg v={isNum(ath) && isNum(lastV) ? (lastV / ath - 1) * 100 : null} /></b><small>monthly closes</small></div>
+        <div className="kpi"><span>Up years (last {years.length})</span><b><Big>{years.length ? `${pos} / ${years.length}` : '—'}</Big></b></div>
+        <div className="kpi"><span>Avg yearly return</span><b><Big><Chg v={years.length ? years.reduce((a, b) => a + b.r, 0) / years.length : null} /></Big></b></div>
+        <div className="kpi"><span>From record high</span><b><Big><Chg v={isNum(ath) && isNum(lastV) ? (lastV / ath - 1) * 100 : null} /></Big></b><small>monthly closes</small></div>
       </div>
       <svg className="chart" viewBox={`0 0 ${W} ${H + 18}`} width="100%" role="img" aria-label="Bar chart of yearly returns">
         <line x1="0" x2={W} y1={H / 2} y2={H / 2} stroke={T.lineHi} />

@@ -5,7 +5,7 @@ import { useSource } from '@/data/store';
 import { useQuotes } from '@/data/yahoo';
 import { FOMC_2026 } from '@/data/universe';
 import { big, bp, dateLabel, isNum, isoDaysAgo, monthLabel, num, signed } from '@/lib/format';
-import { Chg, Panel, Spark, Tabs } from '@/ui/kit';
+import { Chg, Panel, Spark, Tabs, Big } from '@/ui/kit';
 import { CurveChart } from '@/ui/charts';
 import { T } from '@/ui/theme';
 
@@ -22,10 +22,10 @@ export function YieldCurve() {
   return (
     <Panel id="p-curve" title="US Treasury curve" src={f} span="c4" note={`Constant-maturity yields as of ${dateLabel(lastDate)} (FRED publishes with a one-day lag).`}>
       <div className="kpis">
-        <div className="kpi"><span>2s10s</span><b className={(v('T10Y2Y') ?? 0) < 0 ? 'down' : ''}>{bp(v('T10Y2Y'))}</b><small>{(v('T10Y2Y') ?? 0) < 0 ? 'inverted' : 'positive'}</small></div>
-        <div className="kpi"><span>3m10y</span><b className={(v('T10Y3M') ?? 0) < 0 ? 'down' : ''}>{bp(v('T10Y3M'))}</b></div>
-        <div className="kpi"><span>10Y real</span><b>{isNum(v('DFII10')) ? num(v('DFII10')) + '%' : '—'}</b><small>TIPS</small></div>
-        <div className="kpi"><span>10Y breakeven</span><b>{isNum(v('T10YIE')) ? num(v('T10YIE')) + '%' : '—'}</b></div>
+        <div className="kpi"><span>2s10s</span><b className={(v('T10Y2Y') ?? 0) < 0 ? 'down' : ''}><Big>{bp(v('T10Y2Y'))}</Big></b><small>{(v('T10Y2Y') ?? 0) < 0 ? 'inverted' : 'positive'}</small></div>
+        <div className="kpi"><span>3m10y</span><b className={(v('T10Y3M') ?? 0) < 0 ? 'down' : ''}><Big>{bp(v('T10Y3M'))}</Big></b></div>
+        <div className="kpi"><span>10Y real</span><b><Big>{isNum(v('DFII10')) ? num(v('DFII10')) + '%' : '—'}</Big></b><small>TIPS</small></div>
+        <div className="kpi"><span>10Y breakeven</span><b><Big>{isNum(v('T10YIE')) ? num(v('T10YIE')) + '%' : '—'}</Big></b></div>
       </div>
       <CurveChart labels={CURVE.map((c) => c[1])} series={[
         { name: 'Latest', color: T.accent, values: now },
@@ -67,9 +67,9 @@ export function CentralBanks() {
   return (
     <Panel id="p-cb" title="Fed, central banks & liquidity" src={[f, zq]} span="c4" note="Futures-implied rate = 100 − front-month 30-day fed funds future (ZQ). Net liquidity = Fed balance sheet − TGA − reverse repo.">
       <div className="kpis">
-        <div className="kpi"><span>Fed target range</span><b>{lo && hi ? `${lo.v.toFixed(2)}–${hi.v.toFixed(2)}%` : '—'}</b><small>{hi ? dateLabel(hi.d) : ''}</small></div>
-        <div className="kpi"><span>Next FOMC</span><b>{next ? dateLabel(next, false) : '—'}</b><small>{days != null ? `in ${days} day${days === 1 ? '' : 's'}` : 'schedule not yet published'}</small></div>
-        <div className="kpi"><span>Futures-implied</span><b>{isNum(implied) ? implied.toFixed(3) + '%' : '—'}</b><small>{isNum(implied) && effr ? `${bp(implied - effr.v)} vs EFFR` : 'front month'}</small></div>
+        <div className="kpi"><span>Fed target range</span><b><Big>{lo && hi ? `${lo.v.toFixed(2)}–${hi.v.toFixed(2)}%` : '—'}</Big></b><small>{hi ? dateLabel(hi.d) : ''}</small></div>
+        <div className="kpi"><span>Next FOMC</span><b><Big>{next ? dateLabel(next, false) : '—'}</Big></b><small>{days != null ? `in ${days} day${days === 1 ? '' : 's'}` : 'schedule not yet published'}</small></div>
+        <div className="kpi"><span>Futures-implied</span><b><Big>{isNum(implied) ? implied.toFixed(3) + '%' : '—'}</Big></b><small>{isNum(implied) && effr ? `${bp(implied - effr.v)} vs EFFR` : 'front month'}</small></div>
       </div>
       <table className="t">
         <thead><tr><th>Rate</th><th>Latest</th><th>3M chg</th><th>1Y</th></tr></thead>

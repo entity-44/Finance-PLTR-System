@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { COT, CRYPTO, EARNINGS, edgarSource, IPOS, NEWS, tone } from '@/data/sources';
 import { sourceFor, useSource } from '@/data/store';
 import { ago, big, dateLabel, isNum, num, pct, price } from '@/lib/format';
-import { Chg, Panel, Spark, Tabs, useNow } from '@/ui/kit';
+import { Chg, Panel, Spark, Tabs, useNow, Big } from '@/ui/kit';
 import { T } from '@/ui/theme';
 
 // ---------------------------------------------------------------- CFTC positioning
@@ -47,10 +47,10 @@ export function Crypto() {
     <Panel id="p-crypto" title="Crypto" src={c} span="c4" note="Fear & Greed from alternative.me (0 = extreme fear, 100 = extreme greed). Fees in sat/vB.">
       {d && <>
         <div className="kpis">
-          <div className="kpi"><span>Total market cap</span><b>{d.totalMcap ? '$' + big(d.totalMcap) : '—'}</b><small><Chg v={d.mcapChg} /> 24h</small></div>
-          <div className="kpi"><span>BTC dominance</span><b>{isNum(d.btcDom) ? d.btcDom.toFixed(1) + '%' : '—'}</b><small>ETH {isNum(d.ethDom) ? d.ethDom.toFixed(1) + '%' : '—'}</small></div>
-          <div className="kpi"><span>Fear &amp; Greed</span><b>{d.fng ? d.fng.value : '—'}</b><small>{d.fng?.label ?? ''}</small></div>
-          <div className="kpi"><span>BTC fees, sat/vB</span><b style={{ fontSize: 14 }}>{d.fees ? `${d.fees.fast}/${d.fees.hour}/${d.fees.eco}` : '—'}</b><small>{d.height ? 'block ' + num(d.height, 0) : ''}</small></div>
+          <div className="kpi"><span>Total market cap</span><b><Big>{d.totalMcap ? '$' + big(d.totalMcap) : '—'}</Big></b><small><Chg v={d.mcapChg} /> 24h</small></div>
+          <div className="kpi"><span>BTC dominance</span><b><Big>{isNum(d.btcDom) ? d.btcDom.toFixed(1) + '%' : '—'}</Big></b><small>ETH {isNum(d.ethDom) ? d.ethDom.toFixed(1) + '%' : '—'}</small></div>
+          <div className="kpi"><span>Fear &amp; Greed</span><b><Big>{d.fng ? d.fng.value : '—'}</Big></b><small>{d.fng?.label ?? ''}</small></div>
+          <div className="kpi"><span>BTC fees, sat/vB</span><b style={{ fontSize: 14 }}><Big>{d.fees ? `${d.fees.fast}/${d.fees.hour}/${d.fees.eco}` : '—'}</Big></b><small>{d.height ? 'block ' + num(d.height, 0) : ''}</small></div>
         </div>
         <table className="t">
           <thead><tr><th>Asset</th><th>Price</th><th>24h</th><th>7d</th><th>Mkt cap</th><th>7 days</th></tr></thead>

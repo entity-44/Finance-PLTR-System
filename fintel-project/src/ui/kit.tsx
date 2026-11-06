@@ -73,6 +73,15 @@ export const Chg = memo(function Chg({ v, dp = 2, suffix = '%', invert = false, 
   return <span className={bare ? '' : toneClass(v, invert)}>{txt}</span>;
 });
 
+/** A display number with its decimals dimmed (78.3 → 78 bright, .3 dim), as in the reference design. */
+export function Big({ children }: { children?: ReactNode }) {
+  if (typeof children !== 'string' && typeof children !== 'number') return <>{children}</>;
+  const s = String(children);
+  if ((s.match(/\d\.\d/g) || []).length !== 1) return <>{s}</>;
+  const m = s.match(/^(.*?\d)(\.\d+)(.*)$/);
+  return m ? <>{m[1]}<span className="frac">{m[2]}</span>{m[3]}</> : <>{s}</>;
+}
+
 // ---------- sparkline ----------
 export const Spark = memo(function Spark({ data, w = 80, h = 22, base, color, fill = true }: { data: number[]; w?: number; h?: number; base?: number | null; color?: string; fill?: boolean }) {
   if (!data || data.length < 2) return <svg width={w} height={h} aria-hidden="true" />;

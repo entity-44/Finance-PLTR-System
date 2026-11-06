@@ -136,7 +136,7 @@ export default function App() {
     <>
       <header className="top">
         <div className="bar">
-          <div className="brand">FINTEL<b>·</b>COMMAND</div>
+          <div className="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="13" width="4" height="8" rx="2" fill="#e8e8e8" opacity=".45" /><rect x="10" y="8" width="4" height="13" rx="2" fill="#e8e8e8" opacity=".7" /><rect x="17" y="3" width="4" height="18" rx="2" fill="#e8e8e8" /></svg><span>Fintel</span><em>Command</em></div>
           <Clocks />
           <div className="sp" />
           <CommandBar onTicker={chartIt} onCompany={openCompany} />
