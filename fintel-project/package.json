@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "snapshot": "vite-node scripts/snapshot.ts",
-    "build:site": "VITE_STATIC=1 vite build --base=/Finance-PLTR-System/"
+    "build:site": "VITE_STATIC=1 vite build --base=./"
   },
   "dependencies": {
     "maplibre-gl": "4.7.1",

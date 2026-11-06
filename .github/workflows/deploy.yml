@@ -56,7 +56,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           COMPANIES_MAX_AGE_H: '20'
       - name: Build
-        run: npx vite build --base=/${{ github.event.repository.name }}/
+        run: npx vite build --base=./  # relative paths: survives repo renames
         env:
           VITE_STATIC: '1'
       - uses: actions/upload-pages-artifact@v3

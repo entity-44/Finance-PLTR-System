@@ -16,12 +16,16 @@ import { CommandBar } from '@/ui/Command';
 import { PRESETS, Slot, useLayout, type Span } from '@/ui/layout';
 
 // Exchange hours (local time) for the clocks. Weekends closed; holidays not modelled.
-const CLOCKS: { label: string; tz: string; open: [number, number]; close: [number, number] }[] = [
-  { label: 'NYC', tz: 'America/New_York', open: [9, 30], close: [16, 0] },
-  { label: 'LDN', tz: 'Europe/London', open: [8, 0], close: [16, 30] },
-  { label: 'FRA', tz: 'Europe/Berlin', open: [9, 0], close: [17, 30] },
-  { label: 'TYO', tz: 'Asia/Tokyo', open: [9, 0], close: [15, 30] },
-  { label: 'HKG', tz: 'Asia/Hong_Kong', open: [9, 30], close: [16, 0] },
+// The usual trading-desk set: the three big hubs (New York, London, Tokyo) plus Frankfurt, Hong Kong and
+// Sydney, which opens the global trading day. Regular cash-session hours (lunch breaks ignored).
+// `minor` clocks are hidden first when the top bar runs out of room.
+const CLOCKS: { label: string; city: string; tz: string; open: [number, number]; close: [number, number]; minor?: boolean }[] = [
+  { label: 'NYC', city: 'New York (NYSE)', tz: 'America/New_York', open: [9, 30], close: [16, 0] },
+  { label: 'LDN', city: 'London (LSE)', tz: 'Europe/London', open: [8, 0], close: [16, 30] },
+  { label: 'FRA', city: 'Frankfurt (Xetra)', tz: 'Europe/Berlin', open: [9, 0], close: [17, 30], minor: true },
+  { label: 'TYO', city: 'Tokyo (TSE)', tz: 'Asia/Tokyo', open: [9, 0], close: [15, 30] },
+  { label: 'HKG', city: 'Hong Kong (HKEX)', tz: 'Asia/Hong_Kong', open: [9, 30], close: [16, 0], minor: true },
+  { label: 'SYD', city: 'Sydney (ASX)', tz: 'Australia/Sydney', open: [10, 0], close: [16, 0], minor: true },
 ];
 
 function Clocks() {
@@ -33,7 +37,7 @@ function Clocks() {
         const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: c.tz, hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short' }).formatToParts(now).map((p) => [p.type, p.value]));
         const mins = (Number(parts.hour) % 24) * 60 + Number(parts.minute);
         const open = !['Sat', 'Sun'].includes(parts.weekday) && mins >= c.open[0] * 60 + c.open[1] && mins < c.close[0] * 60 + c.close[1];
-        return <span key={c.label} className={open ? 'open' : ''} title={open ? 'Exchange open (regular session)' : 'Exchange closed'}>{c.label}<b>{parts.hour}:{parts.minute}</b></span>;
+        return <span key={c.label} className={(open ? 'open' : '') + (c.minor ? ' minor' : '')} title={`${c.city}: ${open ? 'open (regular session)' : 'closed'}`}>{c.label}<b>{parts.hour}:{parts.minute}</b></span>;
       })}
     </div>
   );
