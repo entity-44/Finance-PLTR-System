@@ -22,6 +22,22 @@ const SAT: maplibregl.StyleSpecification = {
 type Base = 'sat' | 'dark';
 const baseKey = 'fintel.mapbase';
 const savedBase = (): Base => { try { return localStorage.getItem(baseKey) === 'dark' ? 'dark' : 'sat'; } catch { return 'sat'; } };
+// Camera per country: big countries are framed on their middle rather than the capital, small ones zoom closer.
+const VIEW: Record<string, [number, number, number]> = {
+  USA: [-97, 38.5, 3.1], CAN: [-98, 58, 2.5], MEX: [-102, 23.5, 3.9], BRA: [-52, -12, 3.1], ARG: [-64, -37, 3.1],
+  CHL: [-71, -36, 3.2], COL: [-73.5, 4.5, 4.4], PER: [-75, -9.5, 4.2], RUS: [95, 62, 1.9], CHN: [104, 35, 3],
+  IND: [79, 22, 3.6], IDN: [118, -2.5, 3.4], AUS: [134, -26, 3.1], NZL: [172.5, -41.5, 4.4], SAU: [45, 24, 4.3],
+  ZAF: [25, -29, 4.4], EGY: [30, 26.5, 4.6], NGA: [8, 9.5, 4.6], KEN: [38, 0.5, 5], MAR: [-6.5, 31.5, 4.8],
+  GHA: [-1, 8, 5.4], PAK: [69.5, 30, 4.4], TUR: [35, 39, 4.6], JPN: [138, 37, 4.2], SWE: [16, 62, 3.9],
+  NOR: [12, 64, 3.6], FIN: [26, 64.5, 3.9], FRA: [2.5, 46.5, 4.8], DEU: [10.4, 51.2, 5], ESP: [-3.7, 40.2, 5],
+  ITA: [12.5, 42.5, 4.8], GBR: [-2.5, 54, 4.8], POL: [19.4, 52, 5.1], VNM: [106, 16, 4.4], THA: [101, 13.5, 4.6],
+  MYS: [109, 4, 4.5], PHL: [122, 12, 4.6], KOR: [127.8, 36.3, 5.6], TWN: [121, 23.7, 6], BGD: [90.3, 23.7, 5.8],
+};
+const SMALL = new Set(['SGP', 'HKG', 'QAT', 'KWT', 'ISR', 'BEL', 'NLD', 'CHE', 'AUT', 'CZE', 'HUN', 'DNK', 'IRL', 'PRT', 'GRC', 'ARE']);
+const viewFor = (c: Country): [number, number, number] => VIEW[c.iso3] ?? [c.lng, c.lat, SMALL.has(c.iso3) ? (['SGP', 'HKG'].includes(c.iso3) ? 8 : 6.2) : 5];
+/** Leave room for the country card on the right (desktop); on phones it sits below the map. */
+const cardPad = () => (typeof window !== 'undefined' && window.innerWidth > 760 ? { top: 90, bottom: 40, left: 40, right: 330 } : { top: 40, bottom: 20, left: 20, right: 20 });
+
 const WB = worldBankSource(COUNTRIES.map((c) => c.iso3).filter((c) => c !== 'TWN'));
 
 export function WorldMap() {
@@ -45,9 +61,11 @@ export function WorldMap() {
     if (!box.current) return;
     let m: maplibregl.Map;
     try {
-      m = new maplibregl.Map({ container: box.current, style: base === 'sat' ? SAT : DARK, center: [20, 25], zoom: 1.15, minZoom: 0.8, maxZoom: 7, attributionControl: { compact: true }, renderWorldCopies: false, dragRotate: false });
+      const v0 = viewFor(sel ?? COUNTRIES[0]);
+      m = new maplibregl.Map({ container: box.current, style: base === 'sat' ? SAT : DARK, center: [v0[0], v0[1]], zoom: v0[2], minZoom: 0.8, maxZoom: 9, attributionControl: { compact: true }, renderWorldCopies: false, dragRotate: false });
     } catch (e) { setMapErr('Map needs WebGL, which this browser has turned off.'); return; }
     map.current = m;
+    m.once('load', () => { const v = viewFor(sel ?? COUNTRIES[0]); m.jumpTo({ center: [v[0], v[1]], zoom: v[2], padding: cardPad() }); });
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
     m.on('error', (e) => { if (String(e.error?.message || '').match(/style|Failed to fetch/i)) setMapErr('Map tiles could not load.'); });
     for (const c of COUNTRIES) {
@@ -80,6 +98,16 @@ export function WorldMap() {
       el.classList.toggle('sel', sel?.iso3 === c.iso3);
     }
   }, [q.data, sel]);
+  // fly to the selected country so the map is always over it
+  const first = useRef(true);
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    if (!sel) { m.flyTo({ center: [20, 25], zoom: 1.15, padding: { top: 0, bottom: 0, left: 0, right: 0 }, essential: true }); return; } // card closed: back to the world
+    if (first.current) { first.current = false; return; } // initial view is set on load
+    const v = viewFor(sel);
+    m.flyTo({ center: [v[0], v[1]], zoom: v[2], padding: cardPad(), speed: 1.4, curve: 1.5, essential: true });
+  }, [sel]);
   useEffect(() => { cpMarkers.current.forEach((mk) => { mk.getElement().style.display = showCp ? '' : 'none'; }); }, [showCp]);
 
   const iq = sel?.index ? q.data?.[sel.index[0]] : undefined;
