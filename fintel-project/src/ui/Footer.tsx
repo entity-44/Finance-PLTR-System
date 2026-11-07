@@ -1,0 +1,63 @@
+import { useEffect, useRef } from 'react';
+import { goTo } from './Command';
+
+// The site footer shared across Luis's sites (main site, Finance, Lab, Health): a sign-off, three link
+// columns, a bottom bar, and a large wordmark whose letters drift in and out of focus.
+const WORD = 'parallax';
+const TABS: [string, string][] = [['overview', 'Overview'], ['markets', 'Markets'], ['macro', 'Macro & Rates'], ['geo', 'Geo'], ['companies', 'Companies']];
+const START: [string, string][] = [['p-map', 'World map'], ['p-screener', 'Stock screener'], ['p-ecocal', 'Economic calendar'], ['p-govies', 'Government bonds'], ['p-link', 'Insider network']];
+
+function Wordmark() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const wm = ref.current;
+    if (!wm || matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
+    const L = [...wm.querySelectorAll('span')] as HTMLSpanElement[];
+    let wx = -1, on = false, raf = 0;
+    const t0 = performance.now();
+    const move = (e: PointerEvent) => { wx = e.clientX; }, leave = () => { wx = -1; };
+    const frame = (now: number) => {
+      if (!on) return;
+      const t = (now - t0) / 1000;
+      L.forEach((s, i) => {
+        const r = s.getBoundingClientRect(), c = r.left + r.width / 2;
+        let b: number;
+        if (wx >= 0) b = Math.min(14, Math.abs(wx - c) / 40);
+        else { const ph = (t * 0.45 - i / L.length) % 1.6; b = ph > 0 && ph < 0.45 ? 14 * Math.sin((ph / 0.45) * Math.PI) : 0; }
+        s.style.filter = `blur(${b.toFixed(1)}px)`;
+      });
+      raf = requestAnimationFrame(frame);
+    };
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting && !on) { on = true; raf = requestAnimationFrame(frame); } if (!e.isIntersecting) on = false; });
+    io.observe(wm);
+    wm.addEventListener('pointermove', move); wm.addEventListener('pointerleave', leave);
+    return () => { io.disconnect(); cancelAnimationFrame(raf); wm.removeEventListener('pointermove', move); wm.removeEventListener('pointerleave', leave); };
+  }, []);
+  return <div className="wm" ref={ref} aria-hidden="true">{[...WORD].map((c, i) => <span key={i}>{c}</span>)}</div>;
+}
+
+export function Footer({ onTab }: { onTab: (id: string) => void }) {
+  return (
+    <footer className="site-foot">
+      <div className="fw">
+        <div className="fgrid">
+          <div>
+            <p className="big4">Thanks for watching the tape. <em>Let’s talk markets.</em></p>
+            <p style={{ marginTop: 16 }}>Built by Luis Diaz Busquets. Every number comes from a public source; the status menu at the top right lists each one and when it last updated.</p>
+          </div>
+          <div><h5>Parallax</h5>{TABS.map(([id, l]) => <p key={id}><a href={'#/w/' + id} onClick={(e) => { e.preventDefault(); onTab(id); scrollTo({ top: 0, behavior: 'smooth' }); }}>{l}</a></p>)}</div>
+          <div><h5>Start here</h5>{START.map(([id, l]) => <p key={id}><a href={'#' + id} onClick={(e) => { e.preventDefault(); goTo(id); }}>{l}</a></p>)}</div>
+          <div><h5>Elsewhere</h5>
+            <p><a href="https://ldiazbusquets.github.io/" rel="noopener">Main site</a></p>
+            <p><a href="https://ldiazbusquets.github.io/finance/" rel="noopener">LDB Finance</a></p>
+            <p><a href="https://ldiazbusquets.github.io/lab/" rel="noopener">LDB Lab</a></p>
+            <p><a href="https://github.com/ldiazbusquets/parallax" rel="noopener">Source on GitHub</a></p>
+            <p><a href="https://www.linkedin.com/in/luis-diaz-busquets" rel="noopener">LinkedIn</a></p>
+          </div>
+        </div>
+        <div className="fbar"><span>No cookies, no tracking</span><span>© {new Date().getFullYear()} Luis Diaz Busquets</span><span>Delayed public data. Not investment advice.</span></div>
+      </div>
+      <Wordmark />
+    </footer>
+  );
+}

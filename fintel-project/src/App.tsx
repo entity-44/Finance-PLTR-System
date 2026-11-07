@@ -15,6 +15,7 @@ import { CompanyPage, openCompany, useCompanyRoute } from '@/panels/company';
 import { WorldMap } from '@/map/WorldMap';
 import { WorldEvents } from '@/panels/geo';
 import { CommandBar } from '@/ui/Command';
+import { Footer } from '@/ui/Footer';
 import { Slot, useWorkspaces, WORKSPACES, type Span } from '@/ui/layout';
 
 // Exchange hours (local time) for the clocks. Weekends closed; holidays not modelled.
@@ -178,10 +179,7 @@ export default function App() {
           </Slot>
         ))}
       </main>
-      <footer className="mono faint" style={{ fontSize: 10.5, padding: '6px 16px 20px', textAlign: 'center' }}>
-        Open-source terminal · Data: Yahoo Finance (delayed), FRED, U.S. Treasury, CFTC, SEC EDGAR, World Bank, CoinGecko, mempool.space, alternative.me, Finnhub. For research, not trading advice.
-        {STATIC && ' Website data refreshes about every 15 minutes.'}
-      </footer>
+      <Footer onTab={L.go} />
       {company && <CompanyPage key={company} ticker={company} onClose={closeCompany} onTicker={openCompany} />}
       {settings && <Settings onClose={() => setSettings(false)} />}
       <Toasts />

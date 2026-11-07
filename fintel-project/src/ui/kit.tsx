@@ -44,17 +44,15 @@ export function Panel({ title, src, span = 'c4', right, note, children, hasData,
   const has = hasData ?? list.some((x) => x.data !== undefined);
   return (
     <section className={'panel ' + span} id={id} aria-label={title}>
-      <header className="ph">
+      {/* Source and freshness live in the header tooltip and the status menu (top right); the card only flags a problem. */}
+      <header className="ph" title={`${s.provider}${s.updated ? ' · updated ' + ago(s.updated, now) : ''}${s.error ? ' · ' + s.error : ''}`}>
         <h2>{title}</h2>
+        {(s.status === 'stale' || s.status === 'error') && has && <span className="ph-flag" title={s.error || ''}><Dot status={s.status} />{s.status === 'stale' ? `stale${s.updated ? ' · ' + ago(s.updated, now) : ''}` : 'update failed'}</span>}
         <div className="ph-r">{right}</div>
       </header>
       <div className="pb">
         {has ? children : <Empty status={s.status} error={s.error} />}
       </div>
-      <footer className="pf">
-        <span className="src"><Dot status={s.status} />{s.provider}</span>
-        <span title={s.error || ''}>{s.status === 'stale' ? 'stale · ' : ''}{s.updated ? ago(s.updated, now) : s.status === 'needs-key' ? 'key needed' : ''}</span>
-      </footer>
       {note && <div className="pnote">{note}</div>}
     </section>
   );

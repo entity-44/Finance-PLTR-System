@@ -583,3 +583,22 @@ table.t .only-s { display: none; color: var(--faint); font: 300 11px var(--sans)
 
 /* wide country tables keep the label column in view while scrolling sideways */
 #p-weo table.t th:first-child, #p-weo table.t td:first-child { position: sticky; left: 0; background: #161616; z-index: 1; }
+
+/* ---------- per-card status: only a problem shows on the card; sources live in the status menu ---------- */
+.ph-flag { display: inline-flex; align-items: center; gap: 6px; font: 300 11px var(--sans); color: var(--faint); white-space: nowrap; margin-right: auto; }
+.mappanel .ph-flag { pointer-events: auto; }
+
+/* ---------- site footer (same pattern as the main site, Finance, Lab and Health) ---------- */
+.site-foot { position: relative; overflow: hidden; padding-top: 90px; margin-top: 70px; border-top: 1px solid #1e1e1e; color: var(--dim); }
+.site-foot .fw { max-width: 2200px; margin: 0 auto; padding: 0 clamp(18px, 3vw, 40px); }
+.fgrid { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 30px; }
+.fgrid h5 { font: 400 11.5px var(--mono); color: var(--faint); margin: 0 0 14px; letter-spacing: .04em; }
+.fgrid p { margin: 0 0 9px; color: var(--dim); font: 300 14px var(--sans); }
+.fgrid a { color: inherit; text-decoration: none; }
+.fgrid a:hover { color: var(--text); }
+.big4 { font: 300 clamp(24px, 2.4vw, 32px)/1.2 var(--sans) !important; letter-spacing: -.02em; color: var(--text) !important; margin: 0 !important; }
+.big4 em { font-style: normal; color: var(--faint); }
+.fbar { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding: 26px 0; margin-top: 60px; border-top: 1px solid #1e1e1e; font: 400 11.5px var(--mono); color: var(--faint); }
+.wm { display: flex; justify-content: center; padding: 30px 0 0; user-select: none; overflow: hidden; }
+.wm span { font: 500 clamp(56px, 15vw, 250px)/.8 var(--sans); letter-spacing: -.06em; color: transparent; background: linear-gradient(180deg, #4a4a4a 0%, #1c1c1c 75%, rgba(12,12,12,0) 100%); -webkit-background-clip: text; background-clip: text; display: inline-block; will-change: filter; }
+@media (max-width: 760px) { .fgrid { grid-template-columns: 1fr 1fr; } .fgrid > div:first-child { grid-column: 1 / -1; } .site-foot { padding-top: 56px; margin-top: 40px; } .fbar { margin-top: 36px; } }
