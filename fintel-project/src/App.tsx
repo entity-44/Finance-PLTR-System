@@ -94,6 +94,7 @@ function Health({ onClick }: { onClick: () => void }) {
 export default function App() {
   const [settings, setSettings] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [spin, setSpin] = useState(false);
   const [sel, setSel] = useState('PLTR');
   const [company, closeCompany] = useCompanyRoute();
   useEffect(() => { const o = () => setSettings(true); addEventListener('fintel:settings', o); return () => removeEventListener('fintel:settings', o); }, []);
@@ -147,7 +148,8 @@ export default function App() {
     <>
       <header className="top">
         <div className="bar">
-          <div className="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="13" width="4" height="8" rx="2" fill="#e8e8e8" opacity=".45" /><rect x="10" y="8" width="4" height="13" rx="2" fill="#e8e8e8" opacity=".7" /><rect x="17" y="3" width="4" height="18" rx="2" fill="#e8e8e8" /></svg><span>Parallax</span><em>Terminal</em></div>
+          <button className="brand" title="Home: back to Overview and refresh all data" aria-label="Parallax home: go to Overview and refresh data"
+            onClick={() => { if (company) closeCompany(); L.go('overview'); scrollTo({ top: 0, behavior: 'smooth' }); refreshAll(); setSpin(true); setTimeout(() => setSpin(false), 900); }}><svg viewBox="0 0 24 24" aria-hidden="true" className={spin ? 'spin' : ''}><rect x="3" y="13" width="4" height="8" rx="2" fill="#e8e8e8" opacity=".45" /><rect x="10" y="8" width="4" height="13" rx="2" fill="#e8e8e8" opacity=".7" /><rect x="17" y="3" width="4" height="18" rx="2" fill="#e8e8e8" /></svg><span>Parallax</span><em>Terminal</em></button>
           <nav className="ws-tabs" aria-label="Workspaces">{WORKSPACES.map((w) => <button key={w.id} className={w.id === L.ws.id ? 'on' : ''} aria-current={w.id === L.ws.id ? 'page' : undefined} onClick={() => { L.go(w.id); scrollTo({ top: 0 }); }}>{w.name}</button>)}</nav>
           <div className="sp" />
           <CommandBar onTicker={chartIt} onCompany={openCompany} />

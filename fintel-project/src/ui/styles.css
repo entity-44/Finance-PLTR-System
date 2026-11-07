@@ -467,3 +467,11 @@ select.layout-pick { width: auto; }
 .cev-l small { display: block; color: var(--faint); font-size: 11px; }
 .cev-l a { color: var(--dim); }
 @media (max-width: 760px) { .evlegend { position: static; max-width: none; padding: 8px 12px; } }
+
+/* the Parallax mark is the home button: Overview + refresh all sources */
+button.brand { background: none; border: 0; padding: 4px 8px 4px 2px; margin-left: -2px; border-radius: 12px; cursor: pointer; color: var(--text); }
+button.brand:hover { background: rgba(255,255,255,.04); }
+button.brand:hover em { color: var(--dim); }
+button.brand svg.spin rect { animation: brandPulse .9s ease; transform-origin: center bottom; transform-box: fill-box; }
+button.brand svg.spin rect:nth-child(2) { animation-delay: .08s; } button.brand svg.spin rect:nth-child(3) { animation-delay: .16s; }
+@keyframes brandPulse { 0% { transform: scaleY(1); } 40% { transform: scaleY(.35); } 100% { transform: scaleY(1); } }
