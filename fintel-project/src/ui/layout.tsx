@@ -11,9 +11,10 @@ const it = (s: string): Item[] => s.trim().split(/\s+/).map((x) => { const [key,
 /** Workspaces: tabs across the top, each with its own panel layout (rows sum to 12). */
 export interface Workspace { id: string; name: string; items: Item[] }
 export const WORKSPACES: Workspace[] = [
-  { id: 'overview', name: 'Overview', items: it('map:8 indices:4 heatmap:8 alerts:4 news:6 brief:6 sectors:4 vol:4 cmdty:4') },
-  { id: 'markets', name: 'Markets', items: it('indices:4 sectors:4 vol:4 heatmap:8 cmdty:4 watch:8 fx:4 crypto:4 hist:8 alerts:4 cot:8') },
-  { id: 'macro', name: 'Macro & Rates', items: it('curve:4 cb:4 rates:4 credit:4 eco:8 weo:12 auctions:4 cot:8') },
+  // rows are paired by natural panel height so cards line up (measured on the live site, Nov 2026)
+  { id: 'overview', name: 'Overview', items: it('map:8 indices:4 heatmap:8 vol:4 news:6 brief:6 sectors:4 rates:4 cmdty:4') },
+  { id: 'markets', name: 'Markets', items: it('indices:4 cmdty:4 crypto:4 heatmap:8 vol:4 sectors:4 fx:4 hist:4 watch:8 alerts:4 cot:12') },
+  { id: 'macro', name: 'Macro & Rates', items: it('curve:4 cb:4 rates:4 eco:8 credit:4 weo:12 auctions:4 fx:4 vol:4 cot:12') },
   { id: 'geo', name: 'Geo', items: it('map:12 events:8 news:4 weo:12 rates:4 fx:4 cmdty:4') },
   { id: 'companies', name: 'Companies', items: it('link:12 filings:4 cal:4 news:4 watch:8 alerts:4') },
 ];

@@ -475,3 +475,12 @@ button.brand:hover em { color: var(--dim); }
 button.brand svg.spin rect { animation: brandPulse .9s ease; transform-origin: center bottom; transform-box: fill-box; }
 button.brand svg.spin rect:nth-child(2) { animation-delay: .08s; } button.brand svg.spin rect:nth-child(3) { animation-delay: .16s; }
 @keyframes brandPulse { 0% { transform: scaleY(1); } 40% { transform: scaleY(.35); } 100% { transform: scaleY(1); } }
+
+/* sizing pass: narrow cards cap their lists (scroll inside) so one long list can't stretch a whole row */
+.slot.c3 .pb, .slot.c4 .pb { max-height: 600px; overflow: auto; }
+.slot.c3 .pb.flush, .slot.c4 .mappanel .pb { max-height: none; }
+/* full-width map (Geo tab) gets real height */
+.slot.c12 .mappanel .mapwrap { min-height: min(78vh, 820px); max-height: none; }
+/* country card: tabs and labels stay on one line */
+.mapside .tabs button { white-space: nowrap; padding: 3px 9px; font-size: 11px; }
+.mapside { scrollbar-width: thin; }
