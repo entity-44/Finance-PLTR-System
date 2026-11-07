@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { feature } from 'topojson-client';
+import type { GeometryCollection, Topology } from 'topojson-specification';
+import type { Feature, FeatureCollection } from 'geojson';
+import countriesUrl from 'world-atlas/countries-50m.json?url';
 import { useQuotes } from '@/data/yahoo';
 import { useSource } from '@/data/store';
 import { IMF, IMF_INDICATORS, POLICY, WB_INDICATORS, worldBankSource, type ImfData } from '@/data/sources';
@@ -24,7 +28,7 @@ const baseKey = 'fintel.mapbase';
 const savedBase = (): Base => { try { return localStorage.getItem(baseKey) === 'dark' ? 'dark' : 'sat'; } catch { return 'sat'; } };
 // Camera per country: big countries are framed on their middle rather than the capital, small ones zoom closer.
 const VIEW: Record<string, [number, number, number]> = {
-  USA: [-97, 38.5, 3.1], CAN: [-98, 58, 2.5], MEX: [-102, 23.5, 3.9], BRA: [-52, -12, 3.1], ARG: [-64, -37, 3.1],
+  USA: [-97, 38.5, 2.75], CAN: [-98, 58, 2.5], MEX: [-102, 23.5, 3.9], BRA: [-52, -12, 3.1], ARG: [-64, -37, 3.1],
   CHL: [-71, -36, 3.2], COL: [-73.5, 4.5, 4.4], PER: [-75, -9.5, 4.2], RUS: [95, 62, 1.9], CHN: [104, 35, 3],
   IND: [79, 22, 3.6], IDN: [118, -2.5, 3.4], AUS: [134, -26, 3.1], NZL: [172.5, -41.5, 4.4], SAU: [45, 24, 4.3],
   ZAF: [25, -29, 4.4], EGY: [30, 26.5, 4.6], NGA: [8, 9.5, 4.6], KEN: [38, 0.5, 5], MAR: [-6.5, 31.5, 4.8],
@@ -37,6 +41,77 @@ const SMALL = new Set(['SGP', 'HKG', 'QAT', 'KWT', 'ISR', 'BEL', 'NLD', 'CHE', '
 const viewFor = (c: Country): [number, number, number] => VIEW[c.iso3] ?? [c.lng, c.lat, SMALL.has(c.iso3) ? (['SGP', 'HKG'].includes(c.iso3) ? 8 : 6.2) : 5];
 /** Leave room for the country card on the right (desktop); on phones it sits below the map. */
 const cardPad = () => (typeof window !== 'undefined' && window.innerWidth > 760 ? { top: 90, bottom: 40, left: 40, right: 330 } : { top: 40, bottom: 20, left: 20, right: 20 });
+
+// Country outlines: Natural Earth 1:50m admin-0 shapes (world-atlas, public domain), keyed by ISO 3166 numeric code.
+const NUM: Record<string, string> = {
+  USA: '840', CAN: '124', MEX: '484', BRA: '076', ARG: '032', CHL: '152', COL: '170', PER: '604', GBR: '826', DEU: '276',
+  FRA: '250', ITA: '380', ESP: '724', NLD: '528', CHE: '756', SWE: '752', DNK: '208', NOR: '578', FIN: '246', IRL: '372',
+  PRT: '620', GRC: '300', AUT: '040', BEL: '056', POL: '616', CZE: '203', HUN: '348', TUR: '792', ISR: '376', SAU: '682',
+  ARE: '784', QAT: '634', KWT: '414', EGY: '818', MAR: '504', NGA: '566', GHA: '288', KEN: '404', ZAF: '710', RUS: '643',
+  IND: '356', PAK: '586', BGD: '050', CHN: '156', HKG: '344', JPN: '392', KOR: '410', TWN: '158', SGP: '702', IDN: '360',
+  THA: '764', MYS: '458', VNM: '704', PHL: '608', AUS: '036', NZL: '554',
+};
+const ISO_BY_NUM = Object.fromEntries(Object.entries(NUM).map(([k, v]) => [v, k]));
+/** Rings that cross the 180° meridian (Russia's Chukotka) jump from +180 to -180 and draw lines across the
+ *  whole map. Shift their western half by +360° so the ring is continuous (MapLibre accepts lng > 180). */
+function unwrap(f: Feature): Feature {
+  const fix = (ring: number[][]) => {
+    let lo = Infinity, hi = -Infinity;
+    for (const [x] of ring) { lo = Math.min(lo, x); hi = Math.max(hi, x); }
+    return hi - lo > 180 ? ring.map(([x, y]) => [x < 0 ? x + 360 : x, y]) : ring;
+  };
+  const g = f.geometry;
+  if (g.type === 'Polygon') return { ...f, geometry: { ...g, coordinates: g.coordinates.map(fix) } };
+  if (g.type === 'MultiPolygon') return { ...f, geometry: { ...g, coordinates: g.coordinates.map((p) => p.map(fix)) } };
+  return f;
+}
+let shapes: Promise<Map<string, Feature>> | null = null;
+/** Tracked countries' outlines, keyed by ISO3 (loaded once, ~230 KB gzipped, only when the map is shown). */
+function countryShapes() {
+  shapes ||= fetch(countriesUrl).then((r) => r.json()).then((t: Topology<{ countries: GeometryCollection }>) => {
+    const fc = feature(t, t.objects.countries) as FeatureCollection;
+    const out = new Map<string, Feature>();
+    for (const f of fc.features) { const iso = ISO_BY_NUM[String(f.id)]; if (iso) out.set(iso, { ...unwrap(f), properties: { iso3: iso } }); }
+    return out;
+  });
+  return shapes;
+}
+/** Bounds of a country's main landmass(es): polygons at least a quarter the size of the largest, so far-off
+ *  islands and territories don't zoom the camera out. */
+function mainBounds(f: Feature): [[number, number], [number, number]] | null {
+  const g = f.geometry;
+  const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
+  const area = (r: number[][]) => Math.abs(r.reduce((a, p, i) => { const q = r[(i + 1) % r.length]; return a + p[0] * q[1] - q[0] * p[1]; }, 0) / 2);
+  const items = polys.map((p) => ({ ring: p[0], a: area(p[0]) }));
+  const max = Math.max(0, ...items.map((i) => i.a));
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const it of items) if (it.a >= max * 0.25) for (const [x, y] of it.ring) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  return Number.isFinite(x0) && x1 - x0 < 180 ? [[x0, y0], [x1, y1]] : null; // wider than 180° means it crosses the antimeridian
+}
+// Countries whose shapes mislead a bounding box (Alaska and Hawaii, Russia across the antimeridian, Svalbard)
+const FIXED = new Set(['USA', 'RUS', 'NOR']);
+/** Point the camera at a country: fit its real borders when we have them, otherwise the preset view. */
+function frame(m: maplibregl.Map, c: Country, shape: Feature | undefined, animate: boolean) {
+  const pad = cardPad();
+  m.setPadding({ top: 0, bottom: 0, left: 0, right: 0 }); // padding persists on the map and would stack with fitBounds'
+  const b = shape && !FIXED.has(c.iso3) ? mainBounds(shape) : null;
+  if (b) { m.fitBounds(b, { padding: pad, maxZoom: 7, duration: animate ? 1600 : 0, essential: true }); return; }
+  const v = viewFor(c);
+  if (animate) m.flyTo({ center: [v[0], v[1]], zoom: v[2], padding: pad, speed: 1.4, curve: 1.5, essential: true });
+  else m.jumpTo({ center: [v[0], v[1]], zoom: v[2], padding: pad });
+}
+const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] };
+/** Add the outline layers (again after a basemap switch, which drops custom layers). */
+function addBorderLayers(m: maplibregl.Map, all: Map<string, Feature> | null, selIso: string | undefined) {
+  if (!m.isStyleLoaded() || m.getSource('sel-border')) return;
+  m.addSource('tracked', { type: 'geojson', data: all ? { type: 'FeatureCollection', features: [...all.values()] } : EMPTY });
+  m.addLayer({ id: 'tracked-hit', type: 'fill', source: 'tracked', paint: { 'fill-color': '#ffffff', 'fill-opacity': 0 } });
+  const f = selIso ? all?.get(selIso) : undefined;
+  m.addSource('sel-border', { type: 'geojson', data: f ? { type: 'FeatureCollection', features: [f] } : EMPTY });
+  m.addLayer({ id: 'sel-fill', type: 'fill', source: 'sel-border', paint: { 'fill-color': '#ffffff', 'fill-opacity': 0.07 } });
+  m.addLayer({ id: 'sel-glow', type: 'line', source: 'sel-border', paint: { 'line-color': '#ffffff', 'line-width': 7, 'line-opacity': 0.14, 'line-blur': 5 } });
+  m.addLayer({ id: 'sel-line', type: 'line', source: 'sel-border', paint: { 'line-color': '#ffffff', 'line-width': 1.5, 'line-opacity': 0.95 } });
+}
 
 const WB = worldBankSource(COUNTRIES.map((c) => c.iso3).filter((c) => c !== 'TWN'));
 
@@ -56,6 +131,8 @@ export function WorldMap() {
   const [mapErr, setMapErr] = useState('');
   const [base, setBase] = useState<Base>(savedBase);
   const cpMarkers = useRef<maplibregl.Marker[]>([]);
+  const shapesRef = useRef<Map<string, Feature> | null>(null);
+  const selRef = useRef<Country | null>(sel);
 
   useEffect(() => {
     if (!box.current) return;
@@ -65,14 +142,22 @@ export function WorldMap() {
       m = new maplibregl.Map({ container: box.current, style: base === 'sat' ? SAT : DARK, center: [v0[0], v0[1]], zoom: v0[2], minZoom: 0.8, maxZoom: 9, attributionControl: { compact: true }, renderWorldCopies: false, dragRotate: false });
     } catch (e) { setMapErr('Map needs WebGL, which this browser has turned off.'); return; }
     map.current = m;
-    m.once('load', () => { const v = viewFor(sel ?? COUNTRIES[0]); m.jumpTo({ center: [v[0], v[1]], zoom: v[2], padding: cardPad() }); });
+    m.once('load', () => frame(m, selRef.current ?? COUNTRIES[0], undefined, false));
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+    // outlines: drawn once the style and shapes are ready, and again after a basemap switch
+    m.on('load', () => { countryShapes().then((all) => { shapesRef.current = all; addBorderLayers(m, all, selRef.current?.iso3); if (selRef.current) frame(m, selRef.current, all.get(selRef.current.iso3), false); }).catch(() => { /* outlines are optional */ }); });
+    m.on('styledata', () => { if (shapesRef.current) addBorderLayers(m, shapesRef.current, selRef.current?.iso3); });
+    m.on('click', 'tracked-hit', (e) => { const iso = e.features?.[0]?.properties?.iso3 as string | undefined; const c = COUNTRIES.find((x) => x.iso3 === iso); if (c) setSel(c); });
+    m.on('mouseenter', 'tracked-hit', () => { m.getCanvas().style.cursor = 'pointer'; });
+    m.on('mouseleave', 'tracked-hit', () => { m.getCanvas().style.cursor = ''; });
     m.on('error', (e) => { if (String(e.error?.message || '').match(/style|Failed to fetch/i)) setMapErr('Map tiles could not load.'); });
     for (const c of COUNTRIES) {
       const el = document.createElement('div');
       el.className = 'mk';
       el.title = c.name;
-      el.addEventListener('click', () => setSel(c));
+      el.addEventListener('click', (e) => { e.stopPropagation(); setSel(c); });
+      // keep the map from also treating a marker click as a click on the shape underneath
+      for (const t of ['mousedown', 'mouseup', 'touchstart', 'touchend'] as const) el.addEventListener(t, (e) => e.stopPropagation());
       markers.current.set(c.iso3, el);
       new maplibregl.Marker({ element: el }).setLngLat([c.lng, c.lat]).addTo(m);
     }
@@ -102,11 +187,15 @@ export function WorldMap() {
   const first = useRef(true);
   useEffect(() => {
     const m = map.current;
+    selRef.current = sel;
+    // outline the selected country
+    const src = m?.getSource('sel-border') as maplibregl.GeoJSONSource | undefined;
+    const f = sel ? shapesRef.current?.get(sel.iso3) : undefined;
+    src?.setData(f ? { type: 'FeatureCollection', features: [f] } : EMPTY);
     if (!m) return;
     if (!sel) { m.flyTo({ center: [20, 25], zoom: 1.15, padding: { top: 0, bottom: 0, left: 0, right: 0 }, essential: true }); return; } // card closed: back to the world
     if (first.current) { first.current = false; return; } // initial view is set on load
-    const v = viewFor(sel);
-    m.flyTo({ center: [v[0], v[1]], zoom: v[2], padding: cardPad(), speed: 1.4, curve: 1.5, essential: true });
+    frame(m, sel, shapesRef.current?.get(sel.iso3), true);
   }, [sel]);
   useEffect(() => { cpMarkers.current.forEach((mk) => { mk.getElement().style.display = showCp ? '' : 'none'; }); }, [showCp]);
 
