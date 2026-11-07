@@ -546,8 +546,8 @@ table.t th.l { text-align: left; }
 table.t.screen td.nm { max-width: 260px; overflow: hidden; text-overflow: ellipsis; font-family: var(--sans); }
 table.t .warm { color: #ef6f3c; }
 @container (max-width: 820px) { table.t .hide-m { display: none; } }
-@container (max-width: 560px) { table.t .hide-s { display: none; } .screen-ctl input.in { width: 100%; } table.t .only-s { display: block; } }
 table.t .only-s { display: none; color: var(--faint); font: 300 11px var(--sans); max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+@container (max-width: 560px) { table.t .hide-s { display: none; } .screen-ctl input.in { width: 100%; } table.t .only-s { display: block; } }
 
 /* ---------- analyst ratings ---------- */
 .recbars { display: grid; gap: 6px; margin-bottom: 8px; }
@@ -568,6 +568,7 @@ table.t .only-s { display: none; color: var(--faint); font: 300 11px var(--sans)
   .mappanel .mapwrap, .slot.c12 .mappanel .mapwrap { min-height: 0; max-height: none; height: auto; display: flex; flex-direction: column; }
   .mappanel .mapwrap .mapcanvas { position: relative; inset: auto; height: 58vh; min-height: 300px; max-height: 480px; flex: none; }
   .mappanel .mapside { flex: none; overflow: visible; }
+  .mappanel .maplegend { position: static; inset: auto; height: auto; max-height: none; width: auto; margin: 8px 12px 0; flex: none; flex-wrap: wrap; }
   /* top bar: brand, command box and status on one row, workspace tabs underneath */
   .bar .sp { display: none; }
   .bar .cmd-open { flex: 1 1 auto; min-width: 0; }
