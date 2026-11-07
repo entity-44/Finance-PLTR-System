@@ -50,6 +50,9 @@ The app lives in `fintel-project/`. See its README for running it and the source
   `Accept: application/vnd.sdmx.data+csv;version=1.0.0`. No CORS (relay `/px/bis`, snapshot `bis.json`). Euro area = XM.
 - IMF WEO: `imf.org/external/datamapper/api/v1/<INDICATOR>` (all countries, all years; `periods` is ignored).
   No CORS (relay `/px/imf`, snapshot `imf.json`). Aggregates: WEOWORLD, ADVEC, OEMDC, EURO. Includes Taiwan.
+  imf.org returns 403 to GitHub Actions, so the job publishes `scripts/imf-weo-saved.json` (captured from the same
+  API in a browser, SHA-256 verified, 2026-11-07). Refresh it each April/October when a new WEO edition appears.
+  DBnomics' IMF mirror stops at WEO 2024-10: don't use it.
 - OECD 10Y government yields on FRED: `IRLTLT01<CC>M156N` (monthly). Live for 29 OECD countries; none for
   BR, CN, IN, ID, TR, CO (404) and RU (stopped 2018).
 - Yahoo indices that don't exist: ^IPSA (Chile), ^COLCAP (use ICOLCAP.CL ETF), ^SPBLPGPT (Peru), ^PX (Prague = 0),

@@ -176,6 +176,6 @@ function ImfCard({ d, iso3, err }: { d?: ImfData; iso3: string; err?: string }) 
         <tr key={ind.id}><td>{ind.label}</td>{ys.map((y) => <td key={y}>{fmt(c[ind.id]?.[y], ind.unit)}</td>)}</tr>
       ))}</tbody>
     </table>
-    <p className="faint" style={{ fontSize: 10.5, marginTop: 6 }}>{d.edition}. f = IMF forecast; earlier years can still be estimates.</p>
+    <p className="faint" style={{ fontSize: 10.5, marginTop: 6 }}>{d.edition}{d.saved ? ` (copy saved from imf.org ${d.saved})` : ''}. f = IMF forecast; earlier years can still be estimates.</p>
   </>;
 }

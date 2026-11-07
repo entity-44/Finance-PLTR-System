@@ -129,7 +129,15 @@ async function main() {
   }
 
   if (want('imf')) {
-    await step('imf', async () => { const d = await imfWeo(); await save('imf.json', d); return `${Object.keys(d.data).length} economies · ${d.edition}`; });
+    await step('imf', async () => {
+      try { const d = await imfWeo(); await save('imf.json', d); return `${Object.keys(d.data).length} economies · ${d.edition}`; } catch (e) {
+        // imf.org refuses GitHub's servers. Publish the copy saved from imf.org (scripts/imf-weo-saved.json, same
+        // API, checksum-verified); refresh it when the IMF releases a new edition (April and October).
+        const saved = JSON.parse(await readFile(new URL('./imf-weo-saved.json', import.meta.url), 'utf8')) as import('../src/data/sources').ImfData;
+        await save('imf.json', saved);
+        return `live fetch failed (${(e as Error).message}); published the saved ${saved.edition} copy from ${saved.saved}`;
+      }
+    });
   }
 
   if (want('bis')) {

@@ -244,7 +244,7 @@ export function WorldOutlook() {
   const tone = (c: WeoCol, v: number) => (c.ind === 'NGDP_RPCH' ? (v < 0 ? 'down' : v >= 4 ? 'up' : '') : c.ind === 'PCPIPCH' ? (v >= 6 ? 'down' : '') : c.ind === 'GGXCNL_NGDP' ? (v <= -5 ? 'down' : '') : c.ind === 'GGXWDG_NGDP' ? (v >= 100 ? 'down' : '') : '');
   return (
     <Panel id="p-weo" title="World economic outlook" src={s} span="c12"
-      note={`${s.data?.edition ?? 'IMF World Economic Outlook'}. ${now} and ${now + 1} are IMF projections. Fiscal balance, debt and current account in % of GDP. Click a column to sort; red marks contraction, inflation ≥ 6%, deficits ≥ 5% and debt ≥ 100% of GDP.`}>
+      note={`${s.data?.edition ?? 'IMF World Economic Outlook'}${s.data?.saved ? ` (copy saved from imf.org ${s.data.saved})` : ''}. ${now} and ${now + 1} are IMF projections. Fiscal balance, debt and current account in % of GDP. Click a column to sort; red marks contraction, inflation ≥ 6%, deficits ≥ 5% and debt ≥ 100% of GDP.`}>
       {world && <div className="kpis">
         <div className="kpi"><span>World GDP growth {now}</span><b><Big>{num(world.NGDP_RPCH?.[String(now)], 1) + '%'}</Big></b><small>{now + 1}: {num(world.NGDP_RPCH?.[String(now + 1)], 1)}%</small></div>
         <div className="kpi"><span>World inflation {now}</span><b><Big>{num(world.PCPIPCH?.[String(now)], 1) + '%'}</Big></b><small>{now + 1}: {num(world.PCPIPCH?.[String(now + 1)], 1)}%</small></div>

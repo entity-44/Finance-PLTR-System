@@ -330,7 +330,7 @@ export const IMF_INDICATORS: { id: string; label: string; short: string; unit: '
   { id: 'NGDPDPC', label: 'GDP per capita', short: 'Per cap.', unit: 'USD' },
 ];
 /** { edition, years, data: { ISO3: { indicatorId: { year: value } } } } */
-export interface ImfData { edition: string; years: number[]; data: Record<string, Record<string, Record<string, number>>> }
+export interface ImfData { edition: string; years: number[]; data: Record<string, Record<string, Record<string, number>>>; saved?: string }
 export function shapeImf(raw: Record<string, Record<string, Record<string, number | null>>>, years: number[], edition: string): ImfData {
   const data: ImfData['data'] = {};
   for (const [ind, byCountry] of Object.entries(raw)) {
