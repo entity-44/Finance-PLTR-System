@@ -74,6 +74,13 @@ SEC asks automated tools to identify themselves.
 | Morning brief | Groq, gpt-oss-120b (key) | on demand |
 | Company pages, insider network | SEC EDGAR submissions, XBRL company facts, Form 4 | daily (site) / on open (local) |
 | Alerts | evaluated on each quote refresh | with quotes |
+| Economic calendar (this week, forecast & previous) | Forex Factory weekly feed | 1 h |
+| Government bonds, 10-year daily (DE, euro area, UK, JP, CA, AU + US) | Bundesbank, ECB, Bank of England, Japan MOF, Bank of Canada, RBA | 1 h |
+| Global credit spreads (US by rating, euro HY, EM by region) | ICE BofA indices via FRED | 30 min |
+| Candlestick charts (watchlist, company pages) | Yahoo Finance OHLC (site: tracked symbols, 5D–1Y daily) | with charts |
+| Stock screener (every US-listed stock) | Nasdaq screener + FINRA daily short volume | 15 min / daily |
+| Analyst ratings (company pages, screener) | Finnhub recommendation trends | daily (site) / your key |
+| Short interest | FINRA consolidated short interest (twice monthly) + Reg SHO daily short volume | 12 h / daily |
 
 Locally, sources without browser (CORS) access go through the Vite dev/preview server relay (`/px/*` in
 `vite.config.ts`). The website reads those from the snapshot instead.

@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { atOrBefore, CURVE, diffSeries, FRED_DAILY, FRED_MACRO, last, pctChangeSeries, yoySeries, type Series } from '@/data/fred';
+import { atOrBefore, CURVE, GLOBAL_CREDIT, diffSeries, FRED_DAILY, FRED_MACRO, last, pctChangeSeries, yoySeries, type Series } from '@/data/fred';
 import { AUCTIONS, IMF, POLICY, type PolicyRate } from '@/data/sources';
 import { COUNTRIES } from '@/data/universe';
 import { useSource } from '@/data/store';
 import { useQuotes } from '@/data/yahoo';
 import { FOMC_2026 } from '@/data/universe';
 import { big, bp, dateLabel, isNum, isoDaysAgo, monthLabel, num, signed } from '@/lib/format';
-import { Chg, Panel, Spark, Tabs, Big } from '@/ui/kit';
+import { Chg, Panel, Spark, Tabs, Big, useNow } from '@/ui/kit';
+import { ECOCAL, GOVIES, GOV_YIELDS } from '@/data/global';
 import { CurveChart } from '@/ui/charts';
 import { T } from '@/ui/theme';
 
@@ -136,20 +137,111 @@ export function Economy() {
 // ---------------------------------------------------------------- credit & financial conditions
 export function Credit() {
   const f = useSource(FRED_DAILY);
+  const [tab, setTab] = useState<'us' | 'global'>('us');
   const d = f.data;
   const items: [string, string, string, boolean][] = [
     ['High-yield spread', 'BAMLH0A0HYM2', 'ICE BofA US HY OAS', true], ['Investment-grade spread', 'BAMLC0A0CM', 'ICE BofA US corporate OAS', true],
     ['Chicago Fed NFCI', 'NFCI', 'below 0 = looser than average', true], ['St. Louis stress index', 'STLFSI4', 'below 0 = less stress than average', true],
     ['Broad trade-weighted dollar', 'DTWEXBGS', 'index', false],
   ];
+  const chg = (s: Series | undefined, days: number) => { const l = last(s), p = s && l ? atOrBefore(s, isoDaysAgo(days, new Date(l.d))) : undefined; return l && p ? l.v - p.v : null; };
   return (
-    <Panel id="p-credit" title="Credit & financial conditions" src={f} span="c4" note="Spreads in percentage points over Treasuries. Colours: tighter/looser = green.">
+    <Panel id="p-credit" title="Credit & financial conditions" src={f} span="c4" right={<Tabs small value={tab} onChange={setTab} options={[['us', 'US'], ['global', 'Global']]} />}
+      note={tab === 'us' ? 'Spreads in percentage points over Treasuries. Colours: tighter/looser = green.' : 'ICE BofA option-adjusted spreads over government bonds, in basis points, via FRED (one-day lag). Tighter = green.'}>
+      {tab === 'us' ? (
+        <table className="t">
+          <thead><tr><th>Measure</th><th>Latest</th><th>3M</th><th>1Y</th></tr></thead>
+          <tbody>
+            {items.map(([label, id, what, invert]) => {
+              const s = d?.[id], l = last(s), c3 = chg(s, 91);
+              return <tr key={id}><td>{label}<br /><small className="faint">{what}</small></td><td>{l ? l.v.toFixed(2) : '—'}</td><td>{isNum(c3) ? <Chg v={c3} suffix="" invert={invert} /> : '—'}</td><td><Spark data={spk(s, id === 'NFCI' || id === 'STLFSI4' ? 52 : 260)} w={56} h={16} color={T.accent} fill={false} /></td></tr>;
+            })}
+          </tbody>
+        </table>
+      ) : (
+        <table className="t">
+          <thead><tr><th>Index</th><th>OAS</th><th>1M</th><th>1Y</th></tr></thead>
+          <tbody>
+            {['US', 'Europe', 'Emerging'].map((grp) => [
+              <tr key={grp} className="grp"><td colSpan={4}>{grp === 'US' ? 'US by rating' : grp === 'Europe' ? 'Europe' : 'Emerging markets (USD bonds)'}</td></tr>,
+              ...GLOBAL_CREDIT.filter((c) => c[2] === grp).map(([id, label]) => {
+                const s = d?.[id], l = last(s), c1 = chg(s, 30);
+                return <tr key={id}><td>{label}</td><td>{l ? Math.round(l.v * 100) : '—'}</td><td>{isNum(c1) ? <Chg v={Math.round(c1 * 100)} dp={0} suffix="" invert /> : '—'}</td><td><Spark data={spk(s, 260)} w={56} h={16} color={T.accent} fill={false} /></td></tr>;
+              }),
+            ])}
+          </tbody>
+        </table>
+      )}
+    </Panel>
+  );
+}
+
+// ---------------------------------------------------------------- economic calendar (this week)
+const CUR_NAME: Record<string, string> = { USD: 'United States', EUR: 'Euro area', GBP: 'United Kingdom', JPY: 'Japan', CNY: 'China', CAD: 'Canada', AUD: 'Australia', NZD: 'New Zealand', CHF: 'Switzerland', ALL: 'All' };
+export function EconomicCalendar() {
+  const c = useSource(ECOCAL);
+  const now = useNow();
+  const [imp, setImp] = useState<'key' | 'all'>('key');
+  const [cur, setCur] = useState('ALL');
+  const ev = (c.data ?? []).filter((e) => e.impact !== 'Holiday' && (imp === 'all' || e.impact !== 'Low') && (cur === 'ALL' || e.cur === cur));
+  const curs = ['ALL', ...['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'CAD', 'AUD', 'CHF', 'NZD'].filter((x) => c.data?.some((e) => e.cur === x))];
+  const days = new Map<string, typeof ev>();
+  for (const e of ev) { const k = new Date(e.t).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }); days.set(k, [...(days.get(k) ?? []), e]); }
+  const nextIdx = ev.findIndex((e) => e.t >= now);
+  return (
+    <Panel id="p-ecocal" title="Economic calendar" src={c} span="c4" right={<Tabs small value={imp} onChange={setImp} options={[['key', 'Key'], ['all', 'All']]} />}
+      note="This week’s scheduled releases from the Forex Factory feed, in your local time. Forecast = consensus; results land in the Economy panel and FRED. Key = high and medium impact.">
+      <div className="chips">{curs.map((x) => <button key={x} className={'chip' + (cur === x ? ' on' : '')} onClick={() => setCur(x)} title={CUR_NAME[x]}>{x === 'ALL' ? 'All' : x}</button>)}</div>
+      {ev.length ? (
+        <table className="t cal">
+          <thead><tr><th>Time</th><th className="l">Event</th><th>Fcst</th><th>Prev</th></tr></thead>
+          <tbody>
+            {[...days].map(([day, list]) => [
+              <tr key={day} className="grp"><td colSpan={4}>{day}</td></tr>,
+              ...list.map((e) => {
+                const i = ev.indexOf(e);
+                return <tr key={e.t + e.cur + e.title} className={(e.t < now ? 'past' : '') + (i === nextIdx ? ' next' : '')}>
+                  <td className="dim">{new Date(e.t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</td>
+                  <td className="l"><span className={'imp ' + e.impact.toLowerCase()} title={e.impact + ' impact'} /><b className="cur">{e.cur}</b> {e.title}</td>
+                  <td>{e.forecast || '—'}</td><td className="dim">{e.previous || '—'}</td>
+                </tr>;
+              }),
+            ])}
+          </tbody>
+        </table>
+      ) : <div className="empty">{c.data ? 'Nothing scheduled for this filter.' : 'Loading…'}</div>}
+    </Panel>
+  );
+}
+
+// ---------------------------------------------------------------- daily 10-year government yields
+export function GovYields() {
+  const g = useSource(GOV_YIELDS);
+  const f = useSource(FRED_DAILY);
+  const us = f.data?.DGS10;
+  const rows: { id: string; name: string; what: string; by: string; s?: Series; err?: string }[] = [
+    { id: 'US', name: 'United States', what: '10y Treasury', by: 'FRED', s: us, err: f.error },
+    ...GOVIES.map((x) => ({ id: x.id, name: x.name, what: x.what, by: x.by, s: g.data?.[x.id]?.series, err: g.data?.[x.id]?.error })),
+  ];
+  const usL = last(us);
+  const chg = (s: Series | undefined, days: number) => { const l = last(s), p = s && l ? atOrBefore(s, isoDaysAgo(days, new Date(l.d))) : undefined; return l && p ? (l.v - p.v) * 100 : null; };
+  const prevChg = (s?: Series) => (s && s.length > 1 ? (s[s.length - 1].v - s[s.length - 2].v) * 100 : null);
+  return (
+    <Panel id="p-govies" title="Government bonds, 10-year" src={[g, f]} span="c4" hasData={!!g.data || !!f.data}
+      note="Daily 10-year yields from each country’s central bank or finance ministry (dates differ by a day or two). UK is the BoE zero-coupon 10y; euro area is the ECB curve across all euro governments. Changes in basis points.">
       <table className="t">
-        <thead><tr><th>Measure</th><th>Latest</th><th>3M</th><th>1Y</th></tr></thead>
+        <thead><tr><th>Country</th><th>Yield</th><th>1D</th><th>1M</th><th>vs US</th><th>6M</th></tr></thead>
         <tbody>
-          {items.map(([label, id, what, invert]) => {
-            const s = d?.[id], l = last(s), p = s && l ? atOrBefore(s, isoDaysAgo(91, new Date(l.d))) : undefined;
-            return <tr key={id}><td>{label}<br /><small className="faint">{what}</small></td><td>{l ? l.v.toFixed(2) : '—'}</td><td>{l && p ? <Chg v={l.v - p.v} suffix="" invert={invert} /> : '—'}</td><td><Spark data={spk(s, id === 'NFCI' || id === 'STLFSI4' ? 52 : 260)} w={56} h={16} color={T.accent} fill={false} /></td></tr>;
+          {rows.map((r) => {
+            const l = last(r.s);
+            return <tr key={r.id} title={`${r.what} · ${r.by}${l ? ' · ' + dateLabel(l.d) : ''}`}>
+              <td>{r.name}<br /><small className="faint">{l ? `${r.by} · ${dateLabel(l.d, false)}` : r.err ? 'unavailable' : r.by}</small></td>
+              <td>{l ? l.v.toFixed(2) + '%' : '—'}</td>
+              <td>{isNum(prevChg(r.s)) ? <Chg v={Math.round(prevChg(r.s)!)} dp={0} suffix="" /> : '—'}</td>
+              <td>{isNum(chg(r.s, 30)) ? <Chg v={Math.round(chg(r.s, 30)!)} dp={0} suffix="" /> : '—'}</td>
+              <td className="dim">{l && usL && r.id !== 'US' ? signed(Math.round((l.v - usL.v) * 100), 0) : '—'}</td>
+              <td><Spark data={spk(r.s, 127)} w={52} h={16} color={T.accent} fill={false} /></td>
+            </tr>;
           })}
         </tbody>
       </table>

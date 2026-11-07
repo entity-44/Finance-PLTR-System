@@ -1,10 +1,12 @@
 /* Builds the data snapshot for the website (run by .github/workflows/deploy.yml every ~15 minutes).
    Fetches the sources browsers can't reach directly (Yahoo, FRED, SEC, RSS) and writes public/snap/*.json
    as { generated, data }. Company files (SEC financials + Form 4) are refreshed when older than 20 hours.
-   Usage: npx vite-node scripts/snapshot.ts [--only=quotes,fred,sec,rss,companies]                          */
+   Usage: npx vite-node scripts/snapshot.ts [--only=quotes,fred,sec,rss,ecocal,yields,screener,companies]                          */
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { chartQuotes, chartLive, SNAP_FILES } from '../src/data/yahoo';
+import { chartQuotes, chartLive, ohlcSnapName, SNAP_FILES } from '../src/data/yahoo';
+import { ecoCalendar, govYields } from '../src/data/global';
+import { finnhubRecs, finraShortInterest, nasdaqScreener, TRACKED } from '../src/data/equity';
 import { unzipSync, strFromU8 } from 'fflate';
 import { parseGdeltExport, summariseEvents, type Ev } from '../src/data/events';
 import { fredMany, DAILY_IDS, MACRO_IDS, FRED_SINCE } from '../src/data/fred';
@@ -96,6 +98,23 @@ async function main() {
         return `${Object.keys(q).length} symbols`;
       });
     }
+    // Daily OHLC bars for candlesticks: tracked companies, indices and sector ETFs (rebuilt once a day).
+    await step('ohlc', async () => {
+      const syms = [...new Set([...TRACKED, ...DEFAULT_WATCHLIST, ...TAPE.map((x) => x[0]), ...INDICES.flatMap((r) => r.items.map((x) => x[0])), ...SECTORS.map((x) => x[0]), 'SPY', 'QQQ'])];
+      let done = 0, kept = 0, failed = 0;
+      for (const s of syms) {
+        const f = ohlcSnapName(s);
+        if (await fresh(f)) { kept++; continue; }
+        try {
+          const b = await chartLive(s, '1y', '1d');
+          if (!b.o) throw new Error('no OHLC');
+          await save(f, b); done++;
+        } catch (e) { failed++; if (failed <= 3) log('  ohlc', s, (e as Error).message); }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      if (!done && !kept) throw new Error(`all ${failed} failed`);
+      return `${done} refreshed, ${kept} cached, ${failed} failed`;
+    }, 5 * 60_000);
     await step('gspc-history', async () => {
       if (await fresh('chart-_GSPC-max.json')) return 'cached';
       const b = await chartLive('^GSPC', 'max', '1mo'); await save('chart-_GSPC-max.json', b); return `${b.c.length} months`;
@@ -177,6 +196,38 @@ async function main() {
     }, 6 * 60_000);
   }
 
+  if (want('ecocal')) {
+    await step('ecocal', async () => {
+      // the feed asks for gentle polling: hourly is plenty for a weekly calendar
+      const old = await readSnap<unknown>('ecocal.json');
+      if (old && Date.now() - old.generated < 55 * 60_000) return 'cached (hourly)';
+      const e = await ecoCalendar(); await save('ecocal.json', e); return `${e.length} events this week`;
+    });
+  }
+
+  if (want('yields')) {
+    await step('yields', async () => {
+      const y = await govYields();
+      const good = Object.entries(y).filter(([, v]) => v?.series);
+      for (const [k, v] of Object.entries(y)) if (v?.error) log('  yields', k, v.error);
+      if (!good.length) throw new Error('no issuer responded');
+      await save('yields.json', y);
+      return good.map(([k, v]) => `${k} ${v!.series!.at(-1)!.v}% (${v!.series!.at(-1)!.d})`).join(', ');
+    });
+  }
+
+  if (want('screener')) {
+    await step('screener', async () => { const r = await nasdaqScreener(); await save('screener.json', r); return `${r.length} stocks`; });
+    await step('shorts', async () => {
+      const old = await readSnap<unknown>('shorts.json');
+      if (old && Date.now() - old.generated < 12 * 3600_000) return 'cached (12h)';
+      const s = await finraShortInterest(TRACKED);
+      await save('shorts.json', s);
+      const any = Object.entries(s)[0];
+      return `${Object.keys(s).length}/${TRACKED.length} companies · e.g. ${any?.[0]} ${any?.[1].short} short, ${any?.[1].dtc?.toFixed(1)} days (${any?.[1].date})`;
+    });
+  }
+
   if (want('bis')) {
     await step('bis', async () => { const p = await bisPolicy(); await save('bis.json', p); return `${Object.keys(p).length} central banks`; });
   }
@@ -194,6 +245,18 @@ async function main() {
       }
       if (!Object.keys(out).length) throw new Error('no company news');
       await save('conews.json', out);
+      return `${Object.keys(out).length} companies`;
+    }, 3 * 60_000);
+    await step('ratings', async () => {
+      const old = await readSnap<unknown>('ratings.json');
+      if (old && Date.now() - old.generated < 20 * 3600_000) return 'cached (daily)';
+      const out: Record<string, unknown> = {};
+      for (const t of TRACKED) { // free tier: 60 calls/min
+        try { const r = await finnhubRecs(t, k); if (r.length) out[t] = r; } catch (e) { log('  ratings', t, (e as Error).message); }
+        await new Promise((r) => setTimeout(r, 1100));
+      }
+      if (!Object.keys(out).length) throw new Error('no ratings');
+      await save('ratings.json', out);
       return `${Object.keys(out).length} companies`;
     }, 3 * 60_000);
     await step('ipos', async () => { const i = await finnhubIpos(k); await save('ipo.json', i); return `${i.length} IPOs`; });

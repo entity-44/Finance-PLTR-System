@@ -6,8 +6,9 @@ import { useQuotes } from '@/data/yahoo';
 import { ago, big, dateLabel, isNum, num, pct, price } from '@/lib/format';
 import { STATIC } from '@/lib/env';
 import { Chg, Panel, Tabs, Big, useNow } from '@/ui/kit';
-import { LineChart } from '@/ui/charts';
+import { PriceChart, useChartStyle } from '@/ui/charts';
 import { chartSource, RANGES } from './markets';
+import { AnalystRatings, ShortCard } from './equity';
 
 // Bloomberg-style company page: DES (description), GP (chart), FA (financials), insider trades, filings, links.
 
@@ -79,6 +80,7 @@ export function CompanyPage({ ticker, onClose, onTicker }: { ticker: string; onC
   const q = useQuotes([ticker]);
   const net = useSource(NETWORK);
   const [range, setRange] = useState('1Y');
+  const [style, setStyle] = useChartStyle();
   const ch = useSource(chartSource(ticker, range));
   const x = q.data?.[ticker];
   const c = co.data;
@@ -103,14 +105,15 @@ export function CompanyPage({ ticker, onClose, onTicker }: { ticker: string; onC
         </div>
       </div>
       <div className="co-grid">
-        <Panel title="Price" src={[q, ch]} span="c8" hasData={!!ch.data || !!x} right={<Tabs small value={range} onChange={setRange} options={Object.keys(RANGES).map((k) => [k, k] as [string, string])} />}>
-          {ch.data && ch.data.c.length > 1 ? <LineChart t={ch.data.t} v={ch.data.c} h={240} base={range === '1D' ? x?.prev ?? ch.data.prevClose : undefined} intraday={range === '1D' || range === '5D'} /> : <div className="empty">{ch.error ?? 'Loading chart…'}</div>}
+        <Panel title="Price" src={[q, ch]} span="c8" hasData={!!ch.data || !!x} right={<div className="tabrow"><Tabs small value={style} onChange={setStyle} options={[['line', 'Line'], ['candles', 'Candles']]} /><Tabs small value={range} onChange={setRange} options={Object.keys(RANGES).map((k) => [k, k] as [string, string])} /></div>}>
+          {ch.data && ch.data.c.length > 1 ? <PriceChart bars={ch.data} style={style} h={240} base={range === '1D' ? x?.prev ?? ch.data.prevClose : undefined} intraday={range === '1D' || range === '5D'} /> : <div className="empty">{ch.error ?? 'Loading chart…'}</div>}
           {x && <div className="legend"><span>Day {price(x.dayLow)} – {price(x.dayHigh)}</span><span>52W {price(x.yearLow)} – {price(x.yearHigh)}</span>{isNum(x.yearHigh) && <span>{pct((x.price / x.yearHigh - 1) * 100, 1)} from 52W high</span>}</div>}
         </Panel>
         <Panel title="Key figures" src={co} span="c4" note="Valuation uses the live price and SEC-reported shares and earnings.">
           {c && <Stats c={c} px={x?.price ?? null} />}
         </Panel>
-        <Panel title="Financials (FA)" src={co} span="c8">{c && <Financials c={c} />}</Panel>
+        <AnalystRatings t={ticker} />
+        <ShortCard t={ticker} shares={c?.shares?.val ?? null} />
         <Panel title="Profile" src={co} span="c4">
           {c && <>
             {c.description ? <p style={{ fontSize: 12.5, marginBottom: 10 }}>{c.description}</p> : <p className="dim" style={{ fontSize: 12 }}>The SEC record has no business description; see the latest 10-K below.</p>}
@@ -121,6 +124,14 @@ export function CompanyPage({ ticker, onClose, onTicker }: { ticker: string; onC
               <tr><td>Insiders on file</td><td>{c.people.length}</td></tr>
             </tbody></table>
           </>}
+        </Panel>
+        <Panel title="Financials (FA)" src={co} span="c8">{c && <Financials c={c} />}</Panel>
+        <Panel title="Connections" src={net} span="c4" hasData={net.status !== 'error' || !!net.data}
+          note="People who are insiders here and at other companies this terminal tracks (from Form 4 filings).">
+          {links.length ? <ul className="feed">{links.map((p) => (
+            <li key={p.cik}><span className="ttl"><b>{p.name}</b><small>{p.links.map((l) => `${l.ticker}: ${l.role}`).join(' · ')}</small></span>
+              <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{p.links.filter((l) => l.ticker !== ticker).map((l) => <button key={l.ticker} className="btn" onClick={() => onTicker(l.ticker)}>{l.ticker}</button>)}</span></li>
+          ))}</ul> : <div className="empty">{net.data ? 'No shared insiders with other tracked companies.' : 'Network data not built yet.'}</div>}
         </Panel>
         <Panel title="Insider transactions (Form 4)" src={co} span="c8" note={c ? `Last ${c.insiders.length} transactions from recent Form 4 filings. Open-market buys (P) and sales (S) are the signal; awards, exercises and tax withholding are routine.` : undefined}>
           {c && <>
@@ -141,15 +152,8 @@ export function CompanyPage({ ticker, onClose, onTicker }: { ticker: string; onC
             </div>
           </>}
         </Panel>
-        <Panel title="Connections" src={net} span="c4" hasData={net.status !== 'error' || !!net.data}
-          note="People who are insiders here and at other companies this terminal tracks (from Form 4 filings).">
-          {links.length ? <ul className="feed">{links.map((p) => (
-            <li key={p.cik}><span className="ttl"><b>{p.name}</b><small>{p.links.map((l) => `${l.ticker}: ${l.role}`).join(' · ')}</small></span>
-              <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{p.links.filter((l) => l.ticker !== ticker).map((l) => <button key={l.ticker} className="btn" onClick={() => onTicker(l.ticker)}>{l.ticker}</button>)}</span></li>
-          ))}</ul> : <div className="empty">{net.data ? 'No shared insiders with other tracked companies.' : 'Network data not built yet.'}</div>}
-        </Panel>
         <CompanyNews t={ticker} />
-        <Panel title="Filings (CF)" src={co} span="c8">
+        <Panel title="Filings (CF)" src={co} span="c12">
           {c && <table className="t"><thead><tr><th>Form</th><th>Filed</th><th>Description</th></tr></thead><tbody>
             {c.filings.map((f, i) => <tr key={i}><td><a href={f.link} target="_blank" rel="noreferrer"><b className="mono">{f.form}</b></a></td><td className="dim">{dateLabel(f.date)}</td><td className="l" style={{ fontFamily: 'var(--sans)', whiteSpace: 'normal' }}>{f.desc}{f.items ? <small className="faint"> · Items {f.items}</small> : ''}</td></tr>)}
           </tbody></table>}

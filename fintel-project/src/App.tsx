@@ -5,7 +5,8 @@ import { ago } from '@/lib/format';
 import { STATIC } from '@/lib/env';
 import { Dot, useNow } from '@/ui/kit';
 import { Commodities, Currencies, Heatmap, History, Indices, Sectors, Tape, Volatility, Watchlist } from '@/panels/markets';
-import { Auctions, CentralBanks, Credit, Economy, YieldCurve, GlobalRates, WorldOutlook } from '@/panels/macro';
+import { Auctions, CentralBanks, Credit, Economy, YieldCurve, GlobalRates, WorldOutlook, EconomicCalendar, GovYields } from '@/panels/macro';
+import { Screener, ShortInterest } from '@/panels/equity';
 import { Calendar, Crypto, Filings, News, Positioning } from '@/panels/flows';
 import { Brief } from '@/panels/brief';
 import { Alerts, Toasts } from '@/panels/alerts';
@@ -126,6 +127,10 @@ export default function App() {
     cal: { id: 'p-cal', label: 'Earnings & IPOs', span: 'c3', el: <Calendar /> },
     hist: { id: 'p-hist', label: 'S&P history', span: 'c6', el: <History /> },
     brief: { id: 'p-brief', label: 'AI brief', span: 'c6', el: <Brief /> },
+    ecocal: { id: 'p-ecocal', label: 'Economic calendar', span: 'c4', el: <EconomicCalendar /> },
+    govies: { id: 'p-govies', label: 'Government bonds', span: 'c4', el: <GovYields /> },
+    screener: { id: 'p-screener', label: 'Stock screener', span: 'c12', el: <Screener /> },
+    shorts: { id: 'p-shorts', label: 'Short interest', span: 'c4', el: <ShortInterest /> },
   };
   const L = useWorkspaces(Object.keys(PANELS));
   const hidden = Object.keys(PANELS).filter((k) => !L.items.some((i) => i.key === k));

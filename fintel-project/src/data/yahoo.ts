@@ -92,17 +92,31 @@ export async function spark(symbols: string[], range = '1d', interval = '5m'): P
   return Object.fromEntries(symbols.filter((s) => year[s]).map((s) => [s, window(year[s], n)]));
 }
 
-export interface Bars { symbol: string; name: string; currency: string; t: number[]; c: number[]; prevClose: number | null }
+/** Price bars. Open/high/low/volume are present when the source has them (needed for candlesticks). */
+export interface Bars { symbol: string; name: string; currency: string; t: number[]; c: number[]; prevClose: number | null; o?: number[]; h?: number[]; l?: number[]; v?: number[] }
+type Col = (number | null)[] | undefined;
 interface ChartResponse {
-  chart: { result: { meta: SparkMeta; timestamp?: number[]; indicators: { quote: { close: (number | null)[] }[] } }[] | null; error: { description?: string } | null };
+  chart: { result: { meta: SparkMeta; timestamp?: number[]; indicators: { quote: { close: Col; open?: Col; high?: Col; low?: Col; volume?: Col }[] } }[] | null; error: { description?: string } | null };
 }
 export function parseChart(j: ChartResponse): Bars {
   const r = j.chart?.result?.[0];
   if (!r) throw new Error(j.chart?.error?.description || 'no data for this symbol');
-  const ts = r.timestamp ?? [], cs = r.indicators.quote[0]?.close ?? [];
-  const t: number[] = [], c: number[] = [];
-  ts.forEach((x, i) => { const v = cs[i]; if (typeof v === 'number') { t.push(x * 1000); c.push(v); } });
-  return { symbol: r.meta.symbol, name: r.meta.shortName || r.meta.longName || r.meta.symbol, currency: r.meta.currency || '', t, c, prevClose: r.meta.chartPreviousClose ?? null };
+  const q = r.indicators.quote[0] ?? { close: [] };
+  const ts = r.timestamp ?? [], cs = q.close ?? [];
+  const t: number[] = [], c: number[] = [], o: number[] = [], h: number[] = [], l: number[] = [], v: number[] = [];
+  // OHLC only when every bar has all four prices (otherwise the chart falls back to a line)
+  let full = !!(q.open && q.high && q.low);
+  ts.forEach((x, i) => {
+    const cv = cs[i];
+    if (typeof cv !== 'number') return;
+    t.push(x * 1000); c.push(cv);
+    if (!full) return;
+    const ov = q.open![i], hv = q.high![i], lv = q.low![i];
+    if (typeof ov !== 'number' || typeof hv !== 'number' || typeof lv !== 'number') { full = false; return; }
+    o.push(ov); h.push(Math.max(hv, ov, cv)); l.push(Math.min(lv, ov, cv)); v.push(typeof q.volume?.[i] === 'number' ? q.volume[i]! : 0);
+  });
+  const bars: Bars = { symbol: r.meta.symbol, name: r.meta.shortName || r.meta.longName || r.meta.symbol, currency: r.meta.currency || '', t, c, prevClose: r.meta.chartPreviousClose ?? null };
+  return full && o.length === c.length ? { ...bars, o, h, l, v } : bars;
 }
 export async function chartLive(symbol: string, range: string, interval: string): Promise<Bars> {
   return parseChart(await getJSON<ChartResponse>(`${HOST.yahoo}/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}&includePrePost=false`));
@@ -111,6 +125,11 @@ export async function chartLive(symbol: string, range: string, interval: string)
 export async function chart(symbol: string, range: string, interval: string): Promise<Bars> {
   if (!STATIC) return chartLive(symbol, range, interval);
   if (range === 'max') { const b = await snap<Bars>(`chart-${symbol.replace(/[^A-Za-z0-9]/g, '_')}-max.json`); return b; }
+  // daily OHLC (for candlesticks) for the symbols the job keeps a year of bars for
+  if (['5d', '1mo', '6mo', '1y'].includes(range)) {
+    const ohlc = await snap<Bars>(ohlcSnapName(symbol)).catch(() => undefined);
+    if (ohlc?.o) return windowBars(ohlc, range === '5d' ? 5 : range === '1mo' ? 22 : range === '6mo' ? 127 : 260);
+  }
   const file = range === '1d' ? SNAP_FILES['1d'] : range === '5y' ? SNAP_FILES['5y'] : SNAP_FILES['1y'];
   const all = await snap<Record<string, Quote>>(file);
   let q = all[symbol];
@@ -118,6 +137,12 @@ export async function chart(symbol: string, range: string, interval: string): Pr
   // the website keeps daily bars, so 5D shows the last six daily closes
   if (range === '5d') q = window(q, 6); else if (range === '1mo') q = window(q, 22); else if (range === '6mo') q = window(q, 127);
   return { symbol, name: q.name, currency: q.currency, t: q.t ?? [], c: q.spark, prevClose: q.prev };
+}
+export const ohlcSnapName = (s: string) => `ohlc/${s.replace(/[^A-Za-z0-9]/g, '_')}.json`;
+/** The last n bars, with prevClose set to the close before the window. */
+export function windowBars(b: Bars, n: number): Bars {
+  const k = Math.max(0, b.c.length - n), cut = (a?: number[]) => a?.slice(k);
+  return { ...b, t: b.t.slice(k), c: b.c.slice(k), o: cut(b.o), h: cut(b.h), l: cut(b.l), v: cut(b.v), prevClose: k > 0 ? b.c[k - 1] : b.prevClose };
 }
 export const chartAsOf = (range: string) => (STATIC ? snapTime(range === '1d' ? SNAP_FILES['1d'] : range === '5y' ? SNAP_FILES['5y'] : SNAP_FILES['1y']) : undefined);
 

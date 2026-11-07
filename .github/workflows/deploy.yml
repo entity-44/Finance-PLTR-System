@@ -46,6 +46,12 @@ jobs:
             fintel-project/public/snap/imf.json
             fintel-project/.cache
             fintel-project/public/snap/conews.json
+            fintel-project/public/snap/ohlc
+            fintel-project/public/snap/ratings.json
+            fintel-project/public/snap/shorts.json
+            fintel-project/public/snap/ecocal.json
+            fintel-project/public/snap/yields.json
+            fintel-project/public/snap/screener.json
           key: companies-${{ steps.day.outputs.d }}-${{ github.run_id }}
           restore-keys: |
             companies-${{ steps.day.outputs.d }}-

@@ -67,6 +67,18 @@ The app lives in `fintel-project/`. See its README for running it and the source
 - Company data (`src/data/company.ts`): CIK from company_tickers.json; submissions + XBRL companyfacts from
   data.sec.gov (companyfacts has no CORS, so the site precomputes); Form 4 raw XML = primaryDocument with the
   `xslF345X05/` prefix removed. TTM = last FY + current YTD − prior-year YTD. Unit-tested.
+- Economic calendar: `nfs.faireconomy.media/ff_calendar_thisweek.json` (title, country = currency, ISO date, impact,
+  forecast, previous; no actuals). No CORS (relay `/px/ff`, snapshot `ecocal.json`, polled hourly). `src/data/global.ts`.
+- Daily 10y yields (`src/data/global.ts`, unit-tested): Bundesbank BBSIS `…R10XX…` CSV, ECB `YC/B.U2.EUR.4F.G_N_C.SV_C_YM.SR_10Y`,
+  BoC Valet `BD.CDN.10YR.DQ.YLD` (these three allow browsers), BoE IADB `IUDMNZC` (10y zero-coupon), MOF `jgbcme(_all).csv`,
+  RBA `f2-data.csv` `FCMYGBAG10D` (no CORS: relays `/px/boe|mof|rba`, snapshot `yields.json`).
+- Global credit: ICE BofA OAS on FRED (`GLOBAL_CREDIT` in fred.ts), all live as of Nov 2026. History is limited to ~3 years.
+- Screener: `api.nasdaq.com/api/screener/stocks?tableonly=true&download=true` (~7k rows, 2 MB; no CORS → relay `/px/nasdaq`,
+  snapshot `screener.json`). Analyst ratings: Finnhub `/stock/recommendation` (free). Short interest: FINRA
+  `POST api.finra.org/data/group/otcMarket/name/consolidatedShortInterest` (no CORS, snapshot `shorts.json`); daily short-sale
+  volume `cdn.finra.org/equity/regsho/daily/CNMSshvolYYYYMMDD.txt` allows browsers. `src/data/equity.ts`.
+- Candles: `parseChart` keeps OHLCV when every bar is complete; the site publishes 1y daily bars per tracked symbol in
+  `snap/ohlc/<SYM>.json` (rebuilt daily). Line/Candles choice is saved per browser (`fintel.chartstyle`).
 - Layout (`src/ui/layout.tsx`): panel registry lives in App.tsx (`PANELS`); `WORKSPACES` (tabs: Overview, Markets,
   Macro & Rates, Geo, Companies) each have a default layout, rows summing to 12; edits are saved per tab (`#/w/<id>`).
 
@@ -77,6 +89,11 @@ The app lives in `fintel-project/`. See its README for running it and the source
 - One warm accent `#ef6f3c`, used sparingly (lows, focus, active command). Luis dislikes yellow/amber: don't drift toward it.
 - Map: Esri World Imagery (desaturated) by default with a Streets (CARTO) toggle; overlays are glass (`--glass`).
 
-## Ideas not built yet
+## Ideas not built yet (roadmap)
+- Shipping: IMF PortWatch (free daily port calls and chokepoint transit counts, ArcGIS REST) on the map and as a panel;
+  live vessel positions later via a free AIS feed (aisstream.io websocket, free key; would need a small relay).
+- Cargo flights: OpenSky Network / adsb.lol ADS-B positions filtered to cargo operators (FedEx FDX, UPS, Atlas GTI,
+  Cargolux CLX, Kalitta, Cathay/Emirates/Qatar cargo callsigns) as a map layer with hub traffic counts.
+- Admin/health page across Luis's sites (uptime, deploy status, key expiry such as the Canvas token): pinned for later.
 - Earnings-season beat rate across a full season (needs a longer Finnhub window).
 - Institutional holders (13F) and activist stakes (13D/G) as extra edges in the link view.

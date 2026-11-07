@@ -30,6 +30,10 @@ export const FUNCTIONS: Fn[] = [
   { code: 'BRIEF', name: 'AI morning brief', target: 'p-brief', keywords: 'ai summary' },
   { code: 'LINK', name: 'Link analysis: insider network', target: 'p-link', keywords: 'network graph palantir board insiders' },
   { code: 'ALRT', name: 'Alerts', target: 'p-alerts', keywords: 'alert notify' },
+  { code: 'ECAL', name: 'Economic calendar (this week)', target: 'p-ecocal', keywords: 'calendar releases cpi nfp data forecast consensus' },
+  { code: 'GOVT', name: 'Government bonds, 10-year (daily)', target: 'p-govies', keywords: 'bund gilt jgb sovereign yields bonds global' },
+  { code: 'EQS', name: 'Stock screener', target: 'p-screener', keywords: 'screen filter stocks market cap sector movers' },
+  { code: 'SI', name: 'Short interest', target: 'p-shorts', keywords: 'short squeeze days to cover finra' },
 ];
 
 export function goTo(target: string) {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { BRIEF, groqBrief } from '@/data/sources';
 import { peek, useSource } from '@/data/store';
 import type { Series } from '@/data/fred';
@@ -13,6 +13,37 @@ import type { SourceState } from '@/data/store';
 /** The prompt from what's currently loaded on screen. */
 export function snapshot(): string {
   return briefPrompt(peek<Record<string, Quote>>(QUOTES.id) ?? {}, peek<Record<string, Series>>('fred:daily') ?? {}, peek<Record<string, Series>>('fred:macro') ?? {});
+}
+
+/** The model writes light Markdown (**bold**, *italics*, "- " bullets, "#" headings). Render just that, as
+ *  React elements (never as HTML), so stray asterisks don't show and nothing from the model is injected. */
+function inline(text: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  const re = /\*\*(.+?)\*\*|__(.+?)__|(?<![*\w])\*(?!\s)(.+?)(?<!\s)\*(?!\w)/g;
+  let last = 0, m: RegExpExecArray | null, k = 0;
+  while ((m = re.exec(text))) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    out.push(m[3] != null ? <em key={k++}>{m[3]}</em> : <strong key={k++}>{m[1] ?? m[2]}</strong>);
+    last = re.lastIndex;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+export function Markdown({ text }: { text: string }) {
+  const blocks: ReactNode[] = [];
+  let list: string[] = [];
+  const flush = () => { if (list.length) { blocks.push(<ul key={blocks.length}>{list.map((l, i) => <li key={i}>{inline(l)}</li>)}</ul>); list = []; } };
+  for (const raw of text.replace(/\r/g, '').split('\n')) {
+    const line = raw.trim();
+    const b = line.match(/^(?:[-*•]|\d+[.)])\s+(.*)$/);
+    if (b) { list.push(b[1]); continue; }
+    flush();
+    if (!line) continue;
+    const h = line.match(/^#{1,6}\s+(.*)$/);
+    blocks.push(h ? <h4 key={blocks.length}>{inline(h[1].replace(/\*\*/g, ''))}</h4> : <p key={blocks.length}>{inline(line)}</p>);
+  }
+  flush();
+  return <>{blocks}</>;
 }
 
 export function Brief() {
@@ -37,7 +68,7 @@ export function Brief() {
     <Panel id="p-brief" title="Morning brief" src={src} span="c4" hasData={!!shown || hasKey}
       right={hasKey ? <button className="btn pri" onClick={go} disabled={state === 'busy'}>{state === 'busy' ? 'Writing…' : shown ? 'Rewrite now' : 'Write brief'}</button> : null}
       note={STATIC && !own ? 'Written hourly by an AI model from this site’s data only. Check anything important against the panels.' : 'Written by an AI model from the numbers currently on screen only. Check anything important against the panels.'}>
-      {shown ? <><div className="brief">{shown.text}</div>{shown.at && <p className="faint mono" style={{ fontSize: 10.5, marginTop: 8 }}>written {ago(shown.at, now)}</p>}</>
+      {shown ? <><div className="brief md"><Markdown text={shown.text} /></div>{shown.at && <p className="faint mono" style={{ fontSize: 10.5, marginTop: 8 }}>written {ago(shown.at, now)}</p>}</>
         : <p className="brief-empty">{state === 'error' ? `Couldn't write the brief: ${err}` : 'Generates a short summary of today’s market from the live data in this terminal.'}</p>}
     </Panel>
   );

@@ -34,6 +34,12 @@ export default defineConfig(({ mode }) => {
     '/px/xbrl': relay('https://data.sec.gov', '/px/xbrl', { 'User-Agent': secUA }),
     '/px/imf': relay('https://www.imf.org', '/px/imf', { 'User-Agent': BROWSER_UA }),
     '/px/bis': relay('https://stats.bis.org', '/px/bis', { 'User-Agent': BROWSER_UA }),
+    '/px/ff': relay('https://nfs.faireconomy.media', '/px/ff', { 'User-Agent': BROWSER_UA }),
+    '/px/boe': relay('https://www.bankofengland.co.uk', '/px/boe', { 'User-Agent': BROWSER_UA }),
+    '/px/mof': relay('https://www.mof.go.jp', '/px/mof', { 'User-Agent': BROWSER_UA }),
+    '/px/rba': relay('https://www.rba.gov.au', '/px/rba', { 'User-Agent': BROWSER_UA }),
+    '/px/nasdaq': relay('https://api.nasdaq.com', '/px/nasdaq', { 'User-Agent': BROWSER_UA, Accept: 'application/json, text/plain, */*' }),
+    '/px/finra': relay('https://api.finra.org', '/px/finra', { 'User-Agent': BROWSER_UA, Accept: 'application/json' }),
   };
   return {
     plugins: [react()],

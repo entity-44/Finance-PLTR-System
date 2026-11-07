@@ -6,7 +6,7 @@ import { COMMODITIES, DEFAULT_WATCHLIST, FX, HEATMAP, INDICES, SECTORS, TAPE, VO
 import { isNum, num, pct, price } from '@/lib/format';
 import { Chg, Panel, RangeBar, Spark, Tabs, Big } from '@/ui/kit';
 import { heat, T } from '@/ui/theme';
-import { LineChart } from '@/ui/charts';
+import { PriceChart, useChartStyle } from '@/ui/charts';
 
 // ---------------------------------------------------------------- ticker tape
 export function Tape() {
@@ -209,6 +209,7 @@ export function Watchlist({ sel, setSel }: { sel: string; setSel: (s: string) =>
   const [list, setList] = useState<string[]>(loadList);
   const [add, setAdd] = useState('');
   const [range, setRange] = useState('1D');
+  const [style, setStyle] = useChartStyle();
   const all = useMemo(() => [...new Set([...list, sel])], [list, sel]);
   const q = useQuotes(all);
   const c = useSource(chartSource(sel, range));
@@ -246,12 +247,14 @@ export function Watchlist({ sel, setSel }: { sel: string; setSel: (s: string) =>
             </div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <button className="btn" onClick={() => { location.hash = '#/c/' + sel; }} title="Company page">DES</button>
+              <Tabs value={style} onChange={setStyle} small options={[['line', 'Line'], ['candles', 'Candles']]} />
               <Tabs value={range} onChange={setRange} small options={Object.keys(RANGES).map((k) => [k, k] as [string, string])} />
             </div>
           </div>
           {bars && bars.c.length > 1
-            ? <LineChart t={bars.t} v={bars.c} h={210} base={range === '1D' ? x?.prev ?? bars.prevClose : undefined} intraday={range === '1D' || range === '5D'} />
+            ? <PriceChart bars={bars} style={style} h={210} base={range === '1D' ? x?.prev ?? bars.prevClose : undefined} intraday={range === '1D' || range === '5D'} />
             : <div className="empty">{c.status === 'error' ? `No chart: ${c.error}` : 'Loading chart…'}</div>}
+          {style === 'candles' && bars && !bars.o && <p className="faint" style={{ fontSize: 11 }}>{STATIC ? 'Candles on the website cover the tracked stocks and indices over 5D–1Y; this view has closing prices only.' : 'No open/high/low data for this range.'}</p>}
           {x && <div className="kpis" style={{ marginTop: 8 }}>
             <div className="kpi"><span>Day range</span><b style={{ fontSize: 13 }}><Big>{price(x.dayLow)} – {price(x.dayHigh)}</Big></b></div>
             <div className="kpi"><span>52-week range</span><b style={{ fontSize: 13 }}><Big>{price(x.yearLow)} – {price(x.yearHigh)}</Big></b></div>

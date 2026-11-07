@@ -94,7 +94,7 @@ export const Spark = memo(function Spark({ data, w = 80, h = 22, base, color, fi
   const up = data[data.length - 1] >= (isNum(base) ? base : data[0]);
   const c = color || (up ? T.up : T.down);
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true" className="spark">
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true" className="spark">
       {isNum(base) && <line x1="0" x2={w} y1={y(base)} y2={y(base)} stroke={T.lineHi} strokeDasharray="2 2" strokeWidth="1" />}
       {fill && <path d={d + `L${w},${h}L0,${h}Z`} fill={c} opacity="0.1" />}
       <path d={d} fill="none" stroke={c} strokeWidth="1.3" strokeLinejoin="round" />

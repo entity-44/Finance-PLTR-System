@@ -53,9 +53,9 @@ export function Crypto() {
           <div className="kpi"><span>BTC fees, sat/vB</span><b style={{ fontSize: 14 }}><Big>{d.fees ? `${d.fees.fast}/${d.fees.hour}/${d.fees.eco}` : '—'}</Big></b><small>{d.height ? 'block ' + num(d.height, 0) : ''}</small></div>
         </div>
         <table className="t">
-          <thead><tr><th>Asset</th><th>Price</th><th>24h</th><th>7d</th><th>Mkt cap</th><th>7 days</th></tr></thead>
+          <thead><tr><th>Asset</th><th>Price</th><th>24h</th><th className="hs">7d</th><th className="hs">Mkt cap</th><th>7 days</th></tr></thead>
           <tbody>
-            {d.coins.map((x) => <tr key={x.id}><td>{x.name}<span className="sym">{x.symbol}</span></td><td>{price(x.price)}</td><td><Chg v={x.chg24} /></td><td><Chg v={x.chg7d} /></td><td>{big(x.mcap)}</td><td><Spark data={x.spark.filter((_, i) => i % 3 === 0)} w={64} h={16} /></td></tr>)}
+            {d.coins.map((x) => <tr key={x.id}><td>{x.name}<span className="sym">{x.symbol}</span></td><td>{price(x.price)}</td><td><Chg v={x.chg24} /></td><td className="hs"><Chg v={x.chg7d} /></td><td className="hs">{big(x.mcap)}</td><td><Spark data={x.spark.filter((_, i) => i % 3 === 0)} w={64} h={16} /></td></tr>)}
           </tbody>
         </table>
       </>}

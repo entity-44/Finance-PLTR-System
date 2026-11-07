@@ -97,3 +97,78 @@ export function CurveChart({ labels, series, h = 200, fmt = (n: number) => n.toF
     </svg>
   );
 }
+
+const vol = (n: number) => (n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(0) + 'K' : String(Math.round(n)));
+
+/** Candlesticks with volume underneath, on the same dashed grid as LineChart. Bodies are muted green/red,
+ *  wicks thin; the window's high and low are labelled as in the line chart; hover shows open/high/low/close. */
+export function CandleChart({ t, o, hi, lo, c, v, h = 200, intraday = false, fmt = price }: { t: number[]; o: number[]; hi: number[]; lo: number[]; c: number[]; v?: number[]; h?: number; intraday?: boolean; fmt?: (n: number) => string }) {
+  const W = 720, L = 6, R = 58, Tp = 14, B = 22;
+  const volH = v && v.some((x) => x > 0) ? (h - Tp - B) * 0.18 : 0;
+  const [hover, setHover] = useState<number | null>(null);
+  const ref = useRef<SVGSVGElement>(null);
+  const n = c.length;
+  const g = useMemo(() => {
+    let min = Math.min(...lo), max = Math.max(...hi);
+    const pad = (max - min) * 0.08 || 1; min -= pad; max += pad;
+    const step = (W - L - R) / n;
+    const x = (i: number) => L + step * (i + 0.5);
+    const y = (p: number) => Tp + (1 - (p - min) / (max - min)) * (h - Tp - B - volH - (volH ? 6 : 0));
+    let iHi = 0, iLo = 0;
+    hi.forEach((p, i) => { if (p > hi[iHi]) iHi = i; });
+    lo.forEach((p, i) => { if (p < lo[iLo]) iLo = i; });
+    const vMax = v ? Math.max(1, ...v) : 1;
+    return { min, max, step, x, y, iHi, iLo, vMax };
+  }, [t, o, hi, lo, c, v, h, volH, n]);
+  const bw = Math.max(1, Math.min(14, g.step * 0.62));
+  const yt = ticks(g.min, g.max, 4);
+  const xIdx = [0, Math.floor(n / 3), Math.floor((2 * n) / 3), n - 1];
+  const onMove = (e: React.MouseEvent) => {
+    const r = ref.current!.getBoundingClientRect();
+    const px = ((e.clientX - r.left) / r.width) * W;
+    setHover(Math.max(0, Math.min(n - 1, Math.floor((px - L) / g.step))));
+  };
+  const label = (i: number, p: number, col: string, above: boolean) => (
+    <text x={Math.max(L + 20, Math.min(g.x(i), W - R - 30))} y={g.y(p) + (above ? -7 : 14)} textAnchor="middle" style={{ fill: col }}>{fmt(p)}</text>
+  );
+  const base = h - B;
+  const hv = hover != null ? hover : null;
+  return (
+    <svg ref={ref} className="chart" viewBox={`0 0 ${W} ${h}`} width="100%" onMouseMove={onMove} onMouseLeave={() => setHover(null)} role="img" aria-label="Candlestick chart">
+      {yt.map((p) => <g key={p}><line x1={L} x2={W - R} y1={g.y(p)} y2={g.y(p)} stroke={T.grid} strokeDasharray="4 5" /><text x={W - R + 8} y={g.y(p) + 3}>{fmt(p)}</text></g>)}
+      {xIdx.map((i, k) => <text key={k} x={g.x(i)} y={h - 5} textAnchor={k === 0 ? 'start' : k === 3 ? 'end' : 'middle'}>{fmtT(t[i], intraday).replace(/, \d{4}$/, '')}</text>)}
+      {volH > 0 && v!.map((x, i) => { const hh = (x / g.vMax) * volH; return <rect key={'v' + i} x={g.x(i) - bw / 2} y={base - hh} width={bw} height={hh} fill={c[i] >= o[i] ? T.up : T.down} opacity={hv === i ? 0.45 : 0.16} />; })}
+      {c.map((cl, i) => {
+        const up = cl >= o[i], col = up ? T.up : T.down;
+        const y1 = g.y(Math.max(o[i], cl)), y2 = g.y(Math.min(o[i], cl));
+        return <g key={i} opacity={hv == null || hv === i ? 0.92 : 0.55}>
+          <line x1={g.x(i)} x2={g.x(i)} y1={g.y(hi[i])} y2={g.y(lo[i])} stroke={col} strokeWidth="1" />
+          <rect x={g.x(i) - bw / 2} y={y1} width={bw} height={Math.max(1, y2 - y1)} rx={bw > 5 ? 1.5 : 0} fill={col} fillOpacity={up ? 0.85 : 0.9} />
+        </g>;
+      })}
+      {label(g.iHi, hi[g.iHi], '#f4f4f4', true)}
+      {g.iLo !== g.iHi && label(g.iLo, lo[g.iLo], T.accent2, false)}
+      {hv != null && <g>
+        <line x1={g.x(hv)} x2={g.x(hv)} y1={Tp} y2={base} stroke="#888" strokeOpacity="0.5" strokeDasharray="2 3" />
+        <rect x={Math.min(g.x(hv) + 10, W - R - 176)} y={Tp} width="172" height={v ? 84 : 70} rx="12" fill="#222" fillOpacity="0.94" stroke="#ffffff14" />
+        {([['O', o[hv]], ['H', hi[hv]], ['L', lo[hv]], ['C', c[hv]]] as [string, number][]).map(([k, p], j) => (
+          <text key={k} x={Math.min(g.x(hv) + 20, W - R - 166)} y={Tp + 16 + j * 13} style={{ fill: k === 'C' ? (c[hv] >= o[hv] ? T.up : T.down) : T.text, fontSize: 11 }}>{k} {fmt(p)}</text>
+        ))}
+        {v && <text x={Math.min(g.x(hv) + 20, W - R - 166)} y={Tp + 16 + 4 * 13} style={{ fontSize: 11 }}>Vol {vol(v[hv])}</text>}
+        <text x={Math.min(g.x(hv) + 20, W - R - 166)} y={Tp + (v ? 77 : 64)}>{fmtT(t[hv], intraday)}</text>
+      </g>}
+    </svg>
+  );
+}
+
+/** Line or candles, remembered per browser. */
+export function useChartStyle(): ['line' | 'candles', (s: 'line' | 'candles') => void] {
+  const [s, set] = useState<'line' | 'candles'>(() => { try { return localStorage.getItem('fintel.chartstyle') === 'candles' ? 'candles' : 'line'; } catch { return 'line'; } });
+  return [s, (x) => { set(x); try { localStorage.setItem('fintel.chartstyle', x); } catch { /* storage blocked */ } }];
+}
+
+/** The price chart used by the watchlist and company pages: candles when asked for and the bars have OHLC. */
+export function PriceChart({ bars, style, h, base, intraday }: { bars: import('@/data/yahoo').Bars; style: 'line' | 'candles'; h: number; base?: number | null; intraday: boolean }) {
+  if (style === 'candles' && bars.o && bars.h && bars.l && bars.c.length > 1) return <CandleChart t={bars.t} o={bars.o} hi={bars.h} lo={bars.l} c={bars.c} v={bars.v} h={h} intraday={intraday} />;
+  return <LineChart t={bars.t} v={bars.c} h={h} base={base} intraday={intraday} />;
+}
