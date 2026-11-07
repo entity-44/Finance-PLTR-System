@@ -7,6 +7,7 @@ import type { Feature, FeatureCollection } from 'geojson';
 import countriesUrl from 'world-atlas/countries-50m.json?url';
 import { isStaleQuote, useQuotes } from '@/data/yahoo';
 import { useSource } from '@/data/store';
+import { EVENT_CATS, EVENTS, FIPS, cameoLabel, type EventCat, type EventsData } from '@/data/events';
 import { IMF, IMF_INDICATORS, POLICY, WB_INDICATORS, worldBankSource, type ImfData } from '@/data/sources';
 import { bondId, policyArea, CHOKEPOINTS, COUNTRIES, type Country } from '@/data/universe';
 import { FRED_MACRO } from '@/data/fred';
@@ -102,6 +103,20 @@ function frame(m: maplibregl.Map, c: Country, shape: Feature | undefined, animat
 }
 const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] };
 /** Add the outline layers (again after a basemap switch, which drops custom layers). */
+/** GDELT event points as GeoJSON, filtered to the categories switched on. */
+function eventsGeo(d: EventsData | undefined, cats: Set<EventCat>): FeatureCollection {
+  if (!d) return EMPTY;
+  return { type: 'FeatureCollection', features: d.points.filter((p) => cats.has(p.cat)).map((p) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [p.lng, p.lat] }, properties: { cat: p.cat, n: p.n, m: p.m, place: p.place, code: p.code, url: p.url, last: p.last } })) };
+}
+const CAT_COLOR: maplibregl.ExpressionSpecification = ['match', ['get', 'cat'], ...EVENT_CATS.flatMap((c) => [c.id, c.color]), '#999999'] as unknown as maplibregl.ExpressionSpecification;
+function addEventLayers(m: maplibregl.Map, data: FeatureCollection, visible: boolean) {
+  if (!m.isStyleLoaded() || m.getSource('events')) return;
+  m.addSource('events', { type: 'geojson', data });
+  const before = m.getLayer('sel-fill') ? 'sel-fill' : undefined;
+  const r: maplibregl.ExpressionSpecification = ['interpolate', ['linear'], ['sqrt', ['get', 'm']], 1.7, 2.2, 6, 4.5, 15, 9, 40, 16];
+  m.addLayer({ id: 'events-glow', type: 'circle', source: 'events', layout: { visibility: visible ? 'visible' : 'none' }, paint: { 'circle-color': CAT_COLOR, 'circle-radius': ['*', r, 2.2], 'circle-opacity': 0.12, 'circle-blur': 1 } }, before);
+  m.addLayer({ id: 'events', type: 'circle', source: 'events', layout: { visibility: visible ? 'visible' : 'none' }, paint: { 'circle-color': CAT_COLOR, 'circle-radius': r, 'circle-opacity': 0.85, 'circle-stroke-color': '#0c0c0c', 'circle-stroke-width': 0.6 } }, before);
+}
 function addBorderLayers(m: maplibregl.Map, all: Map<string, Feature> | null, selIso: string | undefined) {
   if (!m.isStyleLoaded() || m.getSource('sel-border')) return;
   m.addSource('tracked', { type: 'geojson', data: all ? { type: 'FeatureCollection', features: [...all.values()] } : EMPTY });
@@ -123,6 +138,10 @@ export function WorldMap() {
   const pol = useSource(POLICY);
   const imf = useSource(IMF);
   const [fundTab, setFundTab] = useState<'imf' | 'wb'>('imf');
+  const ev = useSource(EVENTS);
+  const [showEv, setShowEv] = useState(true);
+  const [evCats, setEvCats] = useState<Set<EventCat>>(() => new Set(EVENT_CATS.map((c) => c.id)));
+  const evRef = useRef({ data: EMPTY as FeatureCollection, show: true });
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -146,8 +165,22 @@ export function WorldMap() {
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
     // outlines: drawn once the style and shapes are ready, and again after a basemap switch
     m.on('load', () => { countryShapes().then((all) => { shapesRef.current = all; addBorderLayers(m, all, selRef.current?.iso3); if (selRef.current) frame(m, selRef.current, all.get(selRef.current.iso3), false); }).catch(() => { /* outlines are optional */ }); });
-    m.on('styledata', () => { if (shapesRef.current) addBorderLayers(m, shapesRef.current, selRef.current?.iso3); });
-    m.on('click', 'tracked-hit', (e) => { const iso = e.features?.[0]?.properties?.iso3 as string | undefined; const c = COUNTRIES.find((x) => x.iso3 === iso); if (c) setSel(c); });
+    m.on('styledata', () => { if (shapesRef.current) addBorderLayers(m, shapesRef.current, selRef.current?.iso3); addEventLayers(m, evRef.current.data, evRef.current.show); });
+    m.on('load', () => addEventLayers(m, evRef.current.data, evRef.current.show));
+    m.on('click', 'events', (e) => {
+      const p = e.features?.[0]?.properties as { cat: EventCat; n: number; m: number; place: string; code: string; url: string } | undefined;
+      if (!p) return;
+      const cat = EVENT_CATS.find((c) => c.id === p.cat);
+      const box = document.createElement('div');
+      box.className = 'ev-pop';
+      const h = document.createElement('b'); h.textContent = cameoLabel(String(p.code)); box.append(h);
+      const meta = document.createElement('div'); meta.textContent = `${p.place} · ${cat?.label ?? ''} · ${p.n} event${p.n > 1 ? 's' : ''}, ${p.m} mentions (24h)`; box.append(meta);
+      if (p.url) { const a = document.createElement('a'); a.href = p.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; try { a.textContent = new URL(p.url).hostname.replace(/^www\./, '') + ' ↗'; } catch { a.textContent = 'source ↗'; } box.append(a); }
+      new maplibregl.Popup({ offset: 10, closeButton: false, maxWidth: '280px' }).setLngLat(e.lngLat).setDOMContent(box).addTo(m);
+    });
+    m.on('mouseenter', 'events', () => { m.getCanvas().style.cursor = 'pointer'; });
+    m.on('mouseleave', 'events', () => { m.getCanvas().style.cursor = ''; });
+    m.on('click', 'tracked-hit', (e) => { if (m.getLayer('events') && m.queryRenderedFeatures(e.point, { layers: ['events'] }).length) return; const iso = e.features?.[0]?.properties?.iso3 as string | undefined; const c = COUNTRIES.find((x) => x.iso3 === iso); if (c) setSel(c); });
     m.on('mouseenter', 'tracked-hit', () => { m.getCanvas().style.cursor = 'pointer'; });
     m.on('mouseleave', 'tracked-hit', () => { m.getCanvas().style.cursor = ''; });
     m.on('error', (e) => { if (String(e.error?.message || '').match(/style|Failed to fetch/i)) setMapErr('Map tiles could not load.'); });
@@ -170,6 +203,24 @@ export function WorldMap() {
     ro.observe(box.current);
     return () => { ro.disconnect(); m.remove(); markers.current.clear(); cpMarkers.current = []; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // events layer: data, category filter and visibility
+  useEffect(() => {
+    evRef.current = { data: eventsGeo(ev.data, evCats), show: showEv };
+    const m = map.current; if (!m) return;
+    (m.getSource('events') as maplibregl.GeoJSONSource | undefined)?.setData(evRef.current.data);
+    for (const id of ['events', 'events-glow']) if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', showEv ? 'visible' : 'none');
+  }, [ev.data, evCats, showEv]);
+  // other panels (the events feed) can point the map at a place
+  useEffect(() => {
+    const f = (e: Event) => {
+      const { lat, lng, iso3 } = (e as CustomEvent<{ lat: number; lng: number; iso3?: string }>).detail;
+      const c = iso3 ? COUNTRIES.find((x) => x.iso3 === iso3) : undefined;
+      if (c) setSel(c);
+      setTimeout(() => map.current?.flyTo({ center: [lng, lat], zoom: 5.5, padding: cardPad(), essential: true }), c ? 1700 : 0);
+    };
+    addEventListener('fintel:map-focus', f); return () => removeEventListener('fintel:map-focus', f);
+  }, []);
 
   const switchBase = (b: Base) => { setBase(b); try { localStorage.setItem(baseKey, b); } catch { /* private mode */ } map.current?.setStyle(b === 'sat' ? SAT : DARK); setMapErr(''); };
 
@@ -207,7 +258,7 @@ export function WorldMap() {
   const pr = sel ? pol.data?.[policyArea(sel) ?? ''] : undefined;
   const bondPrev = bs && bs.length > 12 ? bs[bs.length - 13] : undefined;
   return (
-    <Panel id="p-map" title="Global markets map" src={[q, wb, fred, pol, imf]} span="c8 mappanel" hasData>
+    <Panel id="p-map" title="Global markets map" src={[q, wb, fred, pol, imf, ev]} span="c8 mappanel" hasData>
       <div className="mapwrap">
         <div ref={box} className="mapcanvas" />
         {mapErr && <div className="maperr" role="status">{mapErr}</div>}
@@ -215,7 +266,17 @@ export function WorldMap() {
           <button className="btn" onClick={() => switchBase('sat')} aria-pressed={base === 'sat'}>Satellite</button>
           <button className="btn" onClick={() => switchBase('dark')} aria-pressed={base === 'dark'}>Streets</button>
           <button className="btn" onClick={() => setShowCp((v) => !v)} aria-pressed={showCp}>Chokepoints</button>
+          <button className="btn" onClick={() => setShowEv((v) => !v)} aria-pressed={showEv} title="World events from GDELT, last 24 hours">Events</button>
         </div>
+        {showEv && <div className="evlegend" role="group" aria-label="Event types">
+          {EVENT_CATS.map((c) => (
+            <button key={c.id} className={evCats.has(c.id) ? 'on' : ''} title={c.hint} aria-pressed={evCats.has(c.id)}
+              onClick={() => setEvCats((s) => { const n = new Set(s); if (n.has(c.id)) n.delete(c.id); else n.add(c.id); return n; })}>
+              <i style={{ background: c.color }} />{c.label}{ev.data ? <span>{ev.data.byCat[c.id].toLocaleString('en-US')}</span> : null}
+            </button>
+          ))}
+          <small>GDELT · 24h</small>
+        </div>}
         <div className="maplegend"><span>Index today</span><span style={{ width: 90, height: 6, borderRadius: 3, background: 'linear-gradient(90deg,#cd3a34,#2a2a2a,#349652)', display: 'inline-block' }} /><span>−2% … +2%</span></div>
         {sel && (
           <aside className="mapside" aria-live="polite">
@@ -231,6 +292,7 @@ export function WorldMap() {
                 {sel.bond && <tr title="Monthly average long-term (10-year) government bond yield, OECD via FRED. Change is versus a year earlier."><td>10Y gov't yield<br /><small className="faint">{bond ? new Date(bond.d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'OECD'}</small></td><td>{bond ? bond.v.toFixed(2) + '%' : '—'}</td><td>{bond && bondPrev ? <Chg v={(bond.v - bondPrev.v) * 100} dp={0} suffix="bp" invert /> : ''}</td></tr>}
               </tbody>
             </table>
+            <CountryEvents d={ev.data} fips={FIPS[sel.iso3]} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '14px 0 4px' }}>
               <span className="faint" style={{ fontSize: 12 }}>Fundamentals</span>
               <Tabs small value={fundTab} onChange={setFundTab} options={[['imf', 'IMF outlook'], ['wb', 'World Bank']]} />
@@ -268,3 +330,21 @@ function ImfCard({ d, iso3, err }: { d?: ImfData; iso3: string; err?: string }) 
     <p className="faint" style={{ fontSize: 10.5, marginTop: 6 }}>{d.edition}{d.saved ? ` (copy saved from imf.org ${d.saved})` : ''}. f = IMF forecast; earlier years can still be estimates.</p>
   </>;
 }
+
+/** Last-24h events for the selected country (GDELT), with the most-covered few. */
+function CountryEvents({ d, fips }: { d?: EventsData; fips?: string }) {
+  if (!d || !fips) return null;
+  const c = d.byCountry[fips];
+  return (
+    <div className="cev">
+      <div className="cev-h"><span className="faint" style={{ fontSize: 12 }}>Events · 24h</span>
+        <span className="cev-n">{EVENT_CATS.map((k) => <span key={k.id} title={k.label}><i style={{ background: k.color }} />{(c?.byCat[k.id] ?? 0).toLocaleString('en-US')}</span>)}</span>
+      </div>
+      {c?.top.length ? <ul className="cev-l">{c.top.slice(0, 3).map((e, i) => (
+        <li key={i}><i style={{ background: EVENT_CATS.find((k) => k.id === e.cat)?.color }} /><span><b>{e.label}</b>{e.a1 || e.a2 ? ` · ${[e.a1, e.a2].filter(Boolean).map(tidyActor).join(' → ')}` : ''}<small>{e.place} · {e.m} mentions · <a href={e.url} target="_blank" rel="noopener noreferrer">{host(e.url)}</a></small></span></li>
+      ))}</ul> : <p className="faint" style={{ fontSize: 11.5 }}>No conflict, protest or coercion events coded in the last 24 hours.</p>}
+    </div>
+  );
+}
+export const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'source'; } };
+export const tidyActor = (a: string) => a.toLowerCase().replace(/\b\w/g, (m) => m.toUpperCase());

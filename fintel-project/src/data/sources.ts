@@ -2,7 +2,7 @@ import { getJSON, getText } from '@/lib/http';
 import { isoDaysAgo } from '@/lib/format';
 import { getKey } from '@/lib/keys';
 import { HOST, snap, snapTime, STATIC } from '@/lib/env';
-import type { SourceDef } from './store';
+import { sourceFor, type SourceDef } from './store';
 
 // ============================ U.S. Treasury auctions (fiscaldata.treasury.gov, CORS, no key)
 const FISCAL = 'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/od/auctions_query';
@@ -363,3 +363,25 @@ export const IMF: SourceDef<ImfData> = {
   asOf: STATIC ? snapTime('imf.json') : undefined,
   fetch: () => (STATIC ? snap<ImfData>('imf.json') : imfWeo()),
 };
+
+// ---------------------------------------------------------------- company news (Finnhub)
+export interface NewsItem { t: number; headline: string; source: string; url: string; summary: string }
+export async function finnhubCompanyNews(symbol: string, key: string): Promise<NewsItem[]> {
+  const j = await getJSON<{ datetime: number; headline: string; source: string; url: string; summary?: string }[]>(`${FH}/company-news?symbol=${encodeURIComponent(symbol)}&from=${isoDaysAgo(10)}&to=${isoDaysAgo(0)}&token=${key}`);
+  const seen = new Set<string>();
+  return (Array.isArray(j) ? j : [])
+    .filter((n) => n.headline && n.url && !seen.has(n.headline) && (seen.add(n.headline), true))
+    .sort((a, b) => b.datetime - a.datetime).slice(0, 15)
+    .map((n) => ({ t: n.datetime * 1000, headline: n.headline, source: n.source, url: n.url, summary: (n.summary || '').slice(0, 280) }));
+}
+/** News for one company: the website's snapshot for tracked companies, otherwise the visitor's Finnhub key. */
+export const companyNewsSource = (t: string) => sourceFor<NewsItem[]>('news:' + t, () => ({
+  id: 'news:' + t, label: `${t} news`, provider: 'Finnhub', every: 30 * 60_000,
+  asOf: STATIC ? snapTime('conews.json') : undefined,
+  fetch: async () => {
+    if (STATIC) { try { const all = await snap<Record<string, NewsItem[]>>('conews.json'); if (all[t]) return all[t]; } catch { /* fall through */ } }
+    const k = getKey('finnhub');
+    if (!k) throw new Error(STATIC ? 'not in the site snapshot; add a free Finnhub key in Settings' : 'Add a free Finnhub key in Settings');
+    return finnhubCompanyNews(t, k);
+  },
+}));

@@ -12,6 +12,7 @@ import { Alerts, Toasts } from '@/panels/alerts';
 import { LinkView } from '@/panels/network';
 import { CompanyPage, openCompany, useCompanyRoute } from '@/panels/company';
 import { WorldMap } from '@/map/WorldMap';
+import { WorldEvents } from '@/panels/geo';
 import { CommandBar } from '@/ui/Command';
 import { Slot, useWorkspaces, WORKSPACES, type Span } from '@/ui/layout';
 
@@ -111,6 +112,7 @@ export default function App() {
     crypto: { id: 'p-crypto', label: 'Crypto', span: 'c4', el: <Crypto /> },
     curve: { id: 'p-curve', label: 'Yield curve', span: 'c4', el: <YieldCurve /> },
     cb: { id: 'p-cb', label: 'Central banks', span: 'c4', el: <CentralBanks /> },
+    events: { id: 'p-events', label: 'World events', span: 'c8', el: <WorldEvents /> },
     weo: { id: 'p-weo', label: 'World economic outlook', span: 'c12', el: <WorldOutlook /> },
     rates: { id: 'p-rates', label: 'Global policy rates', span: 'c4', el: <GlobalRates /> },
     credit: { id: 'p-credit', label: 'Credit', span: 'c4', el: <Credit /> },

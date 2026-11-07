@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CONCEPTS, companySource, NETWORK, type CompanyData, type Metric } from '@/data/company';
 import { useSource } from '@/data/store';
+import { companyNewsSource } from '@/data/sources';
 import { useQuotes } from '@/data/yahoo';
-import { big, dateLabel, isNum, num, pct, price } from '@/lib/format';
+import { ago, big, dateLabel, isNum, num, pct, price } from '@/lib/format';
 import { STATIC } from '@/lib/env';
-import { Chg, Panel, Tabs, Big } from '@/ui/kit';
+import { Chg, Panel, Tabs, Big, useNow } from '@/ui/kit';
 import { LineChart } from '@/ui/charts';
 import { chartSource, RANGES } from './markets';
 
@@ -147,7 +148,8 @@ export function CompanyPage({ ticker, onClose, onTicker }: { ticker: string; onC
               <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{p.links.filter((l) => l.ticker !== ticker).map((l) => <button key={l.ticker} className="btn" onClick={() => onTicker(l.ticker)}>{l.ticker}</button>)}</span></li>
           ))}</ul> : <div className="empty">{net.data ? 'No shared insiders with other tracked companies.' : 'Network data not built yet.'}</div>}
         </Panel>
-        <Panel title="Filings (CF)" src={co} span="c12">
+        <CompanyNews t={ticker} />
+        <Panel title="Filings (CF)" src={co} span="c8">
           {c && <table className="t"><thead><tr><th>Form</th><th>Filed</th><th>Description</th></tr></thead><tbody>
             {c.filings.map((f, i) => <tr key={i}><td><a href={f.link} target="_blank" rel="noreferrer"><b className="mono">{f.form}</b></a></td><td className="dim">{dateLabel(f.date)}</td><td className="l" style={{ fontFamily: 'var(--sans)', whiteSpace: 'normal' }}>{f.desc}{f.items ? <small className="faint"> · Items {f.items}</small> : ''}</td></tr>)}
           </tbody></table>}
@@ -155,5 +157,21 @@ export function CompanyPage({ ticker, onClose, onTicker }: { ticker: string; onC
       </div>
       {STATIC && co.status === 'error' && <p className="dim" style={{ padding: '0 16px 20px', fontSize: 12 }}>The website includes company pages for the stocks it tracks. Run FINTEL locally (npm run dev) to open any SEC-registered company.</p>}
     </div>
+  );
+}
+
+function CompanyNews({ t }: { t: string }) {
+  const n = useSource(companyNewsSource(t));
+  const now = useNow();
+  return (
+    <Panel title="News" src={n} span="c4" note="Company news from Finnhub, last 10 days.">
+      <ul className="feed">
+        {(n.data ?? []).slice(0, 10).map((x, i) => (
+          <li key={i}><span className="meta">{ago(x.t, now)}</span>
+            <span className="ttl"><a href={x.url} target="_blank" rel="noopener noreferrer">{x.headline}</a><small>{x.source}</small></span></li>
+        ))}
+        {n.data && !n.data.length && <li className="dim">No news in the last 10 days.</li>}
+      </ul>
+    </Panel>
   );
 }

@@ -5,8 +5,10 @@
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { chartQuotes, chartLive, SNAP_FILES } from '../src/data/yahoo';
+import { unzipSync, strFromU8 } from 'fflate';
+import { parseGdeltExport, summariseEvents, type Ev } from '../src/data/events';
 import { fredMany, DAILY_IDS, MACRO_IDS, FRED_SINCE } from '../src/data/fred';
-import { EDGAR_FORMS, edgarUrl, edgarSnapName, FEEDS, finnhubEarnings, finnhubIpos, groqBrief, GROQ_MODEL, bisPolicy, imfWeo } from '../src/data/sources';
+import { EDGAR_FORMS, edgarUrl, edgarSnapName, FEEDS, finnhubEarnings, finnhubIpos, groqBrief, GROQ_MODEL, bisPolicy, imfWeo, finnhubCompanyNews } from '../src/data/sources';
 import { briefPrompt } from '../src/data/brief';
 import { buildCompany, buildNetwork, coSnapName, type CompanyData } from '../src/data/company';
 import { COMMODITIES, COUNTRIES, DEFAULT_WATCHLIST, FX, HEATMAP, INDICES, SECTORS, TAPE, VOL } from '../src/data/universe';
@@ -140,6 +142,41 @@ async function main() {
     });
   }
 
+  if (want('events')) {
+    await step('events', async () => {
+      // Rolling 24-hour window of GDELT event files (one every 15 min), kept in .cache between runs.
+      const cacheFile = path.join(path.dirname(OUT), '..', '.cache', 'events-raw.json');
+      let cache: { done: string[]; evs: Ev[] } = { done: [], evs: [] };
+      try { cache = JSON.parse(await readFile(cacheFile, 'utf8')); } catch { /* first run */ }
+      const now = Date.now(), cutoff = now - 24 * 3600_000, q = 15 * 60_000;
+      const todo = [] as string[];
+      for (let t = Math.floor(now / q) * q - 2 * q; t > cutoff; t -= q) { // newest first; the latest file can lag a few minutes
+        const id = new Date(t).toISOString().replace(/[-:T]/g, '').slice(0, 12) + '00';
+        if (!cache.done.includes(id)) todo.push(id);
+      }
+      let added = 0, files = 0;
+      for (const id of todo.slice(0, 40)) { // at most 40 files (10 h) per run; the window fills over a few runs
+        try {
+          const res = await fetch(`http://data.gdeltproject.org/gdeltv2/${id}.export.CSV.zip`);
+          if (res.status === 404) continue;
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const z = unzipSync(new Uint8Array(await res.arrayBuffer()));
+          const tsv = strFromU8(Object.values(z)[0]);
+          const evs = parseGdeltExport(tsv);
+          cache.evs.push(...evs); cache.done.push(id); added += evs.length; files++;
+        } catch (e) { log('  gdelt', id, (e as Error).message); }
+      }
+      cache.evs = cache.evs.filter((e) => e[0] > cutoff);
+      cache.done = cache.done.filter((id) => Date.UTC(+id.slice(0, 4), +id.slice(4, 6) - 1, +id.slice(6, 8), +id.slice(8, 10), +id.slice(10, 12)) > cutoff);
+      if (!cache.evs.length) throw new Error('no GDELT events fetched');
+      await mkdir(path.dirname(cacheFile), { recursive: true });
+      await writeFile(cacheFile, JSON.stringify(cache));
+      const sum = summariseEvents(cache.evs);
+      await save('events.json', sum);
+      return `${files} new files (+${added}) · ${sum.total} events in window · ${cache.done.length}/96 files`;
+    }, 6 * 60_000);
+  }
+
   if (want('bis')) {
     await step('bis', async () => { const p = await bisPolicy(); await save('bis.json', p); return `${Object.keys(p).length} central banks`; });
   }
@@ -147,6 +184,18 @@ async function main() {
   if (want('finnhub') && process.env.FINNHUB_API_KEY) {
     const k = process.env.FINNHUB_API_KEY;
     await step('earnings', async () => { const e = await finnhubEarnings(k); await save('earnings.json', e); return `${e.upcoming.length} upcoming, ${e.reported.length} reported`; });
+    await step('company news', async () => {
+      const old = await readSnap<Record<string, unknown>>('conews.json');
+      if (old && Date.now() - old.generated < 2 * 3600_000) return 'cached (2h)';
+      const out: Record<string, unknown> = {};
+      for (const t of COMPANIES) { // Finnhub free tier: 60 calls/min
+        try { out[t] = await finnhubCompanyNews(t, k); } catch (e) { log('  news', t, (e as Error).message); }
+        await new Promise((r) => setTimeout(r, 1100));
+      }
+      if (!Object.keys(out).length) throw new Error('no company news');
+      await save('conews.json', out);
+      return `${Object.keys(out).length} companies`;
+    }, 3 * 60_000);
     await step('ipos', async () => { const i = await finnhubIpos(k); await save('ipo.json', i); return `${i.length} IPOs`; });
   }
 

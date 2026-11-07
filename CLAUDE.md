@@ -53,6 +53,12 @@ The app lives in `fintel-project/`. See its README for running it and the source
   imf.org returns 403 to GitHub Actions, so the job publishes `scripts/imf-weo-saved.json` (captured from the same
   API in a browser, SHA-256 verified, 2026-11-07). Refresh it each April/October when a new WEO edition appears.
   DBnomics' IMF mirror stops at WEO 2024-10: don't use it.
+- GDELT: the GEO 2.0 API is gone (404) and the DOC API allows 1 request / 5 s, so events come from the raw 2.0
+  event files: `http://data.gdeltproject.org/gdeltv2/<YYYYMMDDHHMM00>.export.CSV.zip` every 15 min (the newest can
+  404 for a few minutes on https). 61 tab-separated columns: EventCode 26, EventRootCode 28, NumMentions 31, ActionGeo
+  FullName 52 / CountryCode (FIPS) 53 / Lat 56 / Long 57, DATEADDED 59, SOURCEURL 60. The job keeps a rolling 24 h
+  window in `.cache/events-raw.json` (Actions cache) and publishes `events.json` (`src/data/events.ts`, unit-tested).
+  Never open GDELT JSON/zip URLs directly in Luis's Chrome (they download); fetch from inside a GDELT HTML page.
 - OECD 10Y government yields on FRED: `IRLTLT01<CC>M156N` (monthly). Live for 29 OECD countries; none for
   BR, CN, IN, ID, TR, CO (404) and RU (stopped 2018).
 - Yahoo indices that don't exist: ^IPSA (Chile), ^COLCAP (use ICOLCAP.CL ETF), ^SPBLPGPT (Peru), ^PX (Prague = 0),

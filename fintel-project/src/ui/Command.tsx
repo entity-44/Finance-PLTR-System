@@ -16,6 +16,7 @@ export const FUNCTIONS: Fn[] = [
   { code: 'CRYPTO', name: 'Crypto', target: 'p-crypto', keywords: 'bitcoin btc eth' },
   { code: 'YCRV', name: 'Treasury yield curve', target: 'p-curve', keywords: 'rates bonds yields' },
   { code: 'BTMM', name: 'Fed, central banks & liquidity', target: 'p-cb', keywords: 'fomc fed funds liquidity' },
+  { code: 'EVNT', name: 'World events: conflict, protest, sanctions (GDELT)', target: 'p-events', keywords: 'events conflict war protest sanctions geopolitics gdelt news world' },
   { code: 'WEO', name: 'IMF World Economic Outlook by country', target: 'p-weo', keywords: 'imf gdp growth inflation debt deficit forecast global economy countries' },
   { code: 'POLR', name: 'Global central bank policy rates', target: 'p-rates', keywords: 'policy rates central banks ecb boe boj global bis hikes cuts' },
   { code: 'CRDT', name: 'Credit & financial conditions', target: 'p-credit', keywords: 'spreads hy ig' },
