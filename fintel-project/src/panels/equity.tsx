@@ -64,7 +64,7 @@ export function Screener() {
             {rows.slice(0, n).map((r) => {
               const s = svPct(r.s), rec = recScore(ratings?.[r.s]?.[0]);
               return <tr key={r.s} className="click" onClick={() => openCompany(r.s)}>
-                <td className="l"><b className="mono">{r.s}</b></td><td className="l hide-s nm">{r.n}</td>
+                <td className="l"><b className="mono">{r.s}</b><small className="only-s">{r.n}</small></td><td className="l hide-s nm">{r.n}</td>
                 <td>{price(r.p)}</td><td><Chg v={r.ch} /></td><td>{isNum(r.mc) ? '$' + big(r.mc, 1) : '—'}</td>
                 <td className="hide-s dim">{isNum(r.v) ? big(r.v, 1) : '—'}</td>
                 <td className="hide-s">{isNum(s) ? <span className={s >= 60 ? 'warm' : ''}>{s.toFixed(0)}%</span> : '—'}</td>
@@ -140,13 +140,17 @@ export function AnalystRatings({ t }: { t: string }) {
 export function ShortCard({ t, shares }: { t: string; shares: number | null }) {
   const s = useSource(SHORTS);
   const sv = useSource(SHORT_VOL);
+  const sc = useSource(SCREENER);
   const x = s.data?.[t], v = sv.data?.rows[t];
+  // SEC's cover-page share count is missing for some multi-class companies; Nasdaq's market cap ÷ price is the fallback
+  const row = shares ? undefined : sc.data?.find((r) => r.s === t);
+  const out = shares ?? (row && isNum(row.mc) ? row.mc / row.p : null);
   return (
     <Panel title="Short interest" src={[s, sv]} span="c4" hasData={!!s.data || !!sv.data}
       note="Short interest is reported to FINRA twice a month. Short volume is the share of yesterday’s trading sold short (FINRA Reg SHO), which includes market-maker hedging.">
       <div className="kpis">
         <div className="kpi"><span>Shares short</span><b><Big>{x ? big(x.short, 1) : '—'}</Big></b><small>{x ? `settled ${dateLabel(x.date)}` : STATIC && s.data ? 'not tracked here' : ''}</small></div>
-        <div className="kpi"><span>% of shares out</span><b><Big>{x && shares ? pct((x.short / shares) * 100, 1, false) : '—'}</Big></b><small>SEC share count</small></div>
+        <div className="kpi"><span>% of shares out</span><b><Big>{x && out ? pct((x.short / out) * 100, 1, false) : '—'}</Big></b><small>{shares ? 'SEC share count' : out ? 'Nasdaq market cap ÷ price' : ''}</small></div>
         <div className="kpi"><span>Change</span><b><Big>{x && isNum(x.chgPct) ? <Chg v={x.chgPct} dp={1} invert /> : '—'}</Big></b><small>vs prior report</small></div>
         <div className="kpi"><span>Days to cover</span><b><Big>{x && isNum(x.dtc) ? x.dtc.toFixed(1) : '—'}</Big></b></div>
         <div className="kpi"><span>Short volume</span><b style={{ color: v && v[0] / v[1] >= 0.6 ? T.accent2 : undefined }}><Big>{v ? pct((v[0] / v[1]) * 100, 0, false) : '—'}</Big></b><small>{sv.data ? dateLabel(sv.data.date) : ''}</small></div>

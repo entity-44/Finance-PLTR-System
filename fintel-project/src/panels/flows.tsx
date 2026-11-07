@@ -18,7 +18,7 @@ export function Positioning() {
     <Panel id="p-cot" title="Speculative positioning (COT)" src={c} span="c6"
       note={`CFTC Commitments of Traders, positions as of ${dateLabel(date)} (released the following Friday). Net = leveraged funds for financial futures, managed money for commodities. Percentile = where this week's net sits in the past year.`}>
       <table className="t">
-        <thead><tr><th>Market</th><th>Net contracts</th><th>Weekly chg</th><th>% of OI</th><th>1Y percentile</th><th>1Y net</th></tr></thead>
+        <thead><tr><th>Market</th><th>Net contracts</th><th className="hs">Weekly chg</th><th className="hs">% of OI</th><th>1Y percentile</th><th>1Y net</th></tr></thead>
         <tbody>
           {groups.map(([g, rows]) => [
             <tr className="grp" key={g}><td colSpan={6}>{g}</td></tr>,
@@ -26,8 +26,8 @@ export function Positioning() {
               <tr key={r.market.code}>
                 <td>{r.market.label}</td>
                 <td className={r.net > 0 ? 'up' : r.net < 0 ? 'down' : ''}>{r.net > 0 ? 'Long ' : r.net < 0 ? 'Short ' : ''}{num(Math.abs(r.net), 0)}</td>
-                <td><Chg v={r.change} suffix="" dp={0} /></td>
-                <td>{pct(r.netPctOi, 1)}</td>
+                <td className="hs"><Chg v={r.change} suffix="" dp={0} /></td>
+                <td className="hs">{pct(r.netPctOi, 1)}</td>
                 <td>{r.pctile == null ? '—' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span className="rbar" style={{ width: 54 }}><i style={{ left: `calc(${r.pctile}% - 1px)` }} /></span><span className={r.pctile >= 90 || r.pctile <= 10 ? 'mono' : 'dim'} style={{ minWidth: 26, color: r.pctile >= 90 || r.pctile <= 10 ? T.accent2 : undefined }}>{r.pctile}</span></span>}</td>
                 <td><Spark data={r.history} w={70} h={16} base={0} color={T.accent} /></td>
               </tr>
@@ -53,9 +53,9 @@ export function Crypto() {
           <div className="kpi"><span>BTC fees, sat/vB</span><b style={{ fontSize: 14 }}><Big>{d.fees ? `${d.fees.fast}/${d.fees.hour}/${d.fees.eco}` : '—'}</Big></b><small>{d.height ? 'block ' + num(d.height, 0) : ''}</small></div>
         </div>
         <table className="t">
-          <thead><tr><th>Asset</th><th>Price</th><th>24h</th><th className="hs">7d</th><th className="hs">Mkt cap</th><th>7 days</th></tr></thead>
+          <thead><tr><th>Asset</th><th>Price</th><th>24h</th><th className="hm">7d</th><th className="hm">Mkt cap</th><th>7 days</th></tr></thead>
           <tbody>
-            {d.coins.map((x) => <tr key={x.id}><td>{x.name}<span className="sym">{x.symbol}</span></td><td>{price(x.price)}</td><td><Chg v={x.chg24} /></td><td className="hs"><Chg v={x.chg7d} /></td><td className="hs">{big(x.mcap)}</td><td><Spark data={x.spark.filter((_, i) => i % 3 === 0)} w={64} h={16} /></td></tr>)}
+            {d.coins.map((x) => <tr key={x.id}><td>{x.name}<span className="sym">{x.symbol}</span></td><td>{price(x.price)}</td><td><Chg v={x.chg24} /></td><td className="hm"><Chg v={x.chg7d} /></td><td className="hm">{big(x.mcap)}</td><td><Spark data={x.spark.filter((_, i) => i % 3 === 0)} w={64} h={16} /></td></tr>)}
           </tbody>
         </table>
       </>}

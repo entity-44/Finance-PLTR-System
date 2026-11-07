@@ -500,9 +500,10 @@ button.brand svg.spin rect:nth-child(2) { animation-delay: .08s; } button.brand 
 /* ---------- width pass: cards measure their own width (container queries) and drop optional columns ---------- */
 .slot, .co-grid > .panel { container-type: inline-size; }
 .kpis > .kpi { min-width: 0; }
-.kpi b { overflow: hidden; text-overflow: ellipsis; }
+.kpi b { white-space: normal; overflow-wrap: anywhere; }
 table.t td svg { max-width: 100%; }
 @container (max-width: 400px) { table.t .hs { display: none; } }
+@container (max-width: 440px) { table.t .hm { display: none; } }
 @container (max-width: 480px) {
   table.t td, table.t th { padding-left: 4px; padding-right: 4px; }
   table.t td svg { width: 40px; }
@@ -545,7 +546,8 @@ table.t th.l { text-align: left; }
 table.t.screen td.nm { max-width: 260px; overflow: hidden; text-overflow: ellipsis; font-family: var(--sans); }
 table.t .warm { color: #ef6f3c; }
 @container (max-width: 820px) { table.t .hide-m { display: none; } }
-@container (max-width: 560px) { table.t .hide-s { display: none; } .screen-ctl input.in { width: 100%; } }
+@container (max-width: 560px) { table.t .hide-s { display: none; } .screen-ctl input.in { width: 100%; } table.t .only-s { display: block; } }
+table.t .only-s { display: none; color: var(--faint); font: 300 11px var(--sans); max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- analyst ratings ---------- */
 .recbars { display: grid; gap: 6px; margin-bottom: 8px; }
@@ -563,9 +565,13 @@ table.t .warm { color: #ef6f3c; }
   .tabs { flex-wrap: wrap; row-gap: 4px; }
   .slot.c3 .pb, .slot.c4 .pb { max-height: 520px; }
   /* the map: shorter, and the country card moves below it instead of covering it */
-  .mapwrap { min-height: 0; height: auto; display: flex; flex-direction: column; }
-  .mapwrap .mapcanvas { position: relative; inset: auto; height: 58vh; min-height: 300px; }
-  .slot.c12 .mappanel .mapwrap { min-height: 0; }
+  .mappanel .mapwrap, .slot.c12 .mappanel .mapwrap { min-height: 0; max-height: none; height: auto; display: flex; flex-direction: column; }
+  .mappanel .mapwrap .mapcanvas { position: relative; inset: auto; height: 58vh; min-height: 300px; max-height: 480px; flex: none; }
+  .mappanel .mapside { flex: none; overflow: visible; }
+  /* top bar: brand, command box and status on one row, workspace tabs underneath */
+  .bar .sp { display: none; }
+  .bar .cmd-open { flex: 1 1 auto; min-width: 0; }
+  .bar .health { flex: none; }
   .mapside { position: static; width: auto; max-height: none; border-radius: 0; background: rgba(16,16,16,.98); }
   .evlegend { position: static; }
   .wl { grid-template-columns: 1fr !important; }
@@ -573,3 +579,6 @@ table.t .warm { color: #ef6f3c; }
   .copage .co-top > div:last-child { text-align: left !important; }
   .modal-in, .cmd-in { width: calc(100vw - 16px); }
 }
+
+/* wide country tables keep the label column in view while scrolling sideways */
+#p-weo table.t th:first-child, #p-weo table.t td:first-child { position: sticky; left: 0; background: #161616; z-index: 1; }

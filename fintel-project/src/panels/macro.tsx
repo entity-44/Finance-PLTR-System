@@ -122,11 +122,11 @@ export function Economy() {
   return (
     <Panel id="p-eco" title="US economy" src={f} span="c6" note="Latest releases from FRED. Months with no release (e.g. delayed by a shutdown) are skipped, not filled.">
       <table className="t">
-        <thead><tr><th>Indicator</th><th>Latest</th><th>Prior</th><th>Period</th><th>2-year trend</th></tr></thead>
+        <thead><tr><th>Indicator</th><th>Latest</th><th className="hs">Prior</th><th className="hs">Period</th><th>2-year trend</th></tr></thead>
         <tbody>
           {rows.map((r) => {
             const better = r.delta == null || r.delta === 0 || !r.good ? 'flat' : (r.delta > 0) === (r.good === 'up') ? 'up' : 'down';
-            return <tr key={r.label}><td>{r.label}</td><td><b className={better}>{r.value}</b></td><td className="dim">{r.prior}</td><td className="dim">{r.when}</td><td><Spark data={r.trend} w={90} h={18} color={T.accent} /></td></tr>;
+            return <tr key={r.label}><td>{r.label}</td><td><b className={better}>{r.value}</b></td><td className="dim hs">{r.prior}</td><td className="dim hs">{r.when}</td><td><Spark data={r.trend} w={90} h={18} color={T.accent} /></td></tr>;
           })}
         </tbody>
       </table>
