@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { goTo } from './Command';
 
-// The site footer shared across Luis's sites (main site, Finance, Lab, Health): a sign-off, three link
+// The site footer, in the same pattern as Luis's other sites (main site, Finance, Lab, Health): a sign-off, three link
 // columns, a bottom bar, and a large wordmark whose letters drift in and out of focus.
 const WORD = 'parallax';
 const TABS: [string, string][] = [['overview', 'Overview'], ['markets', 'Markets'], ['macro', 'Macro & Rates'], ['geo', 'Geo'], ['companies', 'Companies']];
@@ -43,7 +43,7 @@ export function Footer({ onTab }: { onTab: (id: string) => void }) {
         <div className="fgrid">
           <div>
             <p className="big4">Thanks for watching the tape. <em>Let’s talk markets.</em></p>
-            <p style={{ marginTop: 16 }}>Built by Luis Diaz Busquets. Every number comes from a public source; the status menu at the top right lists each one and when it last updated.</p>
+            <p style={{ marginTop: 16 }}>Built by Luis Diaz Busquets, Martin Fantauzzi Figueroa and Martha Ortiz Serrano. Every number comes from a public source; the status menu at the top right lists each one and when it last updated.</p>
           </div>
           <div><h5>Parallax</h5>{TABS.map(([id, l]) => <p key={id}><a href={'#/w/' + id} onClick={(e) => { e.preventDefault(); onTab(id); scrollTo({ top: 0, behavior: 'smooth' }); }}>{l}</a></p>)}</div>
           <div><h5>Start here</h5>{START.map(([id, l]) => <p key={id}><a href={'#' + id} onClick={(e) => { e.preventDefault(); goTo(id); }}>{l}</a></p>)}</div>
@@ -55,7 +55,7 @@ export function Footer({ onTab }: { onTab: (id: string) => void }) {
             <p><a href="https://www.linkedin.com/in/luis-diaz-busquets" rel="noopener">LinkedIn</a></p>
           </div>
         </div>
-        <div className="fbar"><span>No cookies, no tracking</span><span>© {new Date().getFullYear()} Luis Diaz Busquets</span><span>Delayed public data. Not investment advice.</span></div>
+        <div className="fbar"><span>No cookies, no tracking</span><span>© {new Date().getFullYear()} Luis Diaz Busquets, Martin Fantauzzi Figueroa &amp; Martha Ortiz Serrano</span><span>Delayed public data. Not investment advice.</span></div>
       </div>
       <Wordmark />
     </footer>
