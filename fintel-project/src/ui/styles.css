@@ -427,3 +427,7 @@ select.layout-pick { width: auto; }
 .mapside { overflow-x: hidden; }
 .mapside table.t td { white-space: normal; }
 .mapside table.t td:not(:first-child) { white-space: nowrap; }
+
+/* keep the map row a sensible height: the indices list scrolls inside its card instead of stretching the row */
+#p-indices .pb { max-height: 600px; overflow: auto; }
+.mappanel .mapwrap { min-height: 560px; max-height: 760px; }
