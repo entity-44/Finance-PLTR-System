@@ -13,7 +13,7 @@ import { LinkView } from '@/panels/network';
 import { CompanyPage, openCompany, useCompanyRoute } from '@/panels/company';
 import { WorldMap } from '@/map/WorldMap';
 import { CommandBar } from '@/ui/Command';
-import { PRESETS, Slot, useLayout, type Span } from '@/ui/layout';
+import { Slot, useWorkspaces, WORKSPACES, type Span } from '@/ui/layout';
 
 // Exchange hours (local time) for the clocks. Weekends closed; holidays not modelled.
 // The usual trading-desk set: the three big hubs (New York, London, Tokyo) plus Frankfurt, Hong Kong and
@@ -124,15 +124,19 @@ export default function App() {
     hist: { id: 'p-hist', label: 'S&P history', span: 'c6', el: <History /> },
     brief: { id: 'p-brief', label: 'AI brief', span: 'c6', el: <Brief /> },
   };
-  const L = useLayout(Object.keys(PANELS));
-  const hidden = Object.keys(PANELS).filter((k) => !L.layout.items.some((i) => i.key === k));
+  const L = useWorkspaces(Object.keys(PANELS));
+  const hidden = Object.keys(PANELS).filter((k) => !L.items.some((i) => i.key === k));
 
   // A command that targets a hidden panel adds it back, then scrolls to it.
   useEffect(() => {
     const f = (e: Event) => {
       const id = (e as CustomEvent<string>).detail;
       const key = Object.keys(PANELS).find((k) => PANELS[k].id === id);
-      if (key) { L.show(key, PANELS[key].span); setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80); }
+      if (!key) return;
+      // go to the workspace that has this panel, or add it to the current one
+      const home = L.home(key);
+      if (home) L.go(home); else L.show(key, PANELS[key].span);
+      setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
     };
     addEventListener('fintel:need-panel', f); return () => removeEventListener('fintel:need-panel', f);
   });
@@ -142,13 +146,10 @@ export default function App() {
       <header className="top">
         <div className="bar">
           <div className="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="13" width="4" height="8" rx="2" fill="#e8e8e8" opacity=".45" /><rect x="10" y="8" width="4" height="13" rx="2" fill="#e8e8e8" opacity=".7" /><rect x="17" y="3" width="4" height="18" rx="2" fill="#e8e8e8" /></svg><span>Parallax</span><em>Terminal</em></div>
+          <nav className="ws-tabs" aria-label="Workspaces">{WORKSPACES.map((w) => <button key={w.id} className={w.id === L.ws.id ? 'on' : ''} aria-current={w.id === L.ws.id ? 'page' : undefined} onClick={() => { L.go(w.id); scrollTo({ top: 0 }); }}>{w.name}</button>)}</nav>
           <div className="sp" />
           <CommandBar onTicker={chartIt} onCompany={openCompany} />
-          <select className="in layout-pick" value={PRESETS.some((p) => p.name === L.layout.name) ? L.layout.name : 'Custom'} aria-label="Layout"
-            onChange={(e) => { const p = PRESETS.find((x) => x.name === e.target.value); if (p) L.choose(p); }}>
-            {PRESETS.map((p) => <option key={p.name}>{p.name}</option>)}
-            {!PRESETS.some((p) => p.name === L.layout.name) && <option>Custom</option>}
-          </select>
+          {L.customised && editing && <button className="btn" onClick={L.reset} title="Restore this tab's default layout">Reset tab</button>}
           <button className={'btn edit-btn' + (editing ? ' pri' : '')} onClick={() => setEditing((v) => !v)}>{editing ? 'Done' : 'Edit layout'}</button>
           <Health onClick={() => setSettings(true)} />
         </div>
@@ -161,7 +162,7 @@ export default function App() {
         </div>
       )}
       <main aria-hidden={!!company}>
-        {L.layout.items.map((item) => (
+        {L.items.map((item) => (
           <Slot key={item.key} item={item} editing={editing} label={PANELS[item.key].label}
             onMove={(d) => L.move(item.key, d)} onResize={(d) => L.resize(item.key, d)} onHide={() => L.hide(item.key)} onDrop={(from) => L.moveTo(from, item.key)}>
             {PANELS[item.key].el}

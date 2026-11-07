@@ -8,7 +8,7 @@ export const TAPE: Inst[] = [
 ];
 
 export const INDICES: { region: string; items: Inst[] }[] = [
-  { region: 'Americas', items: [['^GSPC', 'S&P 500'], ['^IXIC', 'Nasdaq Comp.'], ['^DJI', 'Dow Jones'], ['^RUT', 'Russell 2000'], ['^GSPTSE', 'S&P/TSX'], ['^BVSP', 'Bovespa'], ['^MXX', 'IPC Mexico'], ['^MERV', 'MERVAL']] },
+  { region: 'Americas', items: [['^GSPC', 'S&P 500'], ['^IXIC', 'Nasdaq Comp.'], ['^DJI', 'Dow Jones'], ['^RUT', 'Russell 2000'], ['^GSPTSE', 'S&P/TSX'], ['^BVSP', 'Bovespa'], ['^MXX', 'IPC Mexico'], ['ARGT', 'Argentina (MSCI ETF)']] },
   { region: 'Europe', items: [['^STOXX', 'STOXX 600'], ['^FTSE', 'FTSE 100'], ['^GDAXI', 'DAX'], ['^FCHI', 'CAC 40'], ['FTSEMIB.MI', 'FTSE MIB'], ['^IBEX', 'IBEX 35'], ['^AEX', 'AEX'], ['^SSMI', 'SMI'], ['^OMX', 'OMX 30'], ['WIG20.WA', 'WIG20']] },
   { region: 'Asia-Pacific', items: [['^N225', 'Nikkei 225'], ['^HSI', 'Hang Seng'], ['000001.SS', 'Shanghai Comp.'], ['^KS11', 'KOSPI'], ['^TWII', 'TAIEX'], ['^BSESN', 'Sensex'], ['^STI', 'STI'], ['^JKSE', 'Jakarta Comp.'], ['^AXJO', 'ASX 200'], ['^NZ50', 'NZX 50']] },
   { region: 'Middle East & Africa', items: [['^TASI.SR', 'Saudi TASI'], ['FADGI.FGI', 'Abu Dhabi ADX'], ['^TA125.TA', 'Tel Aviv 125'], ['XU100.IS', 'BIST 100'], ['^CASE30', 'EGX 30'], ['^J203.JO', 'JSE All Share']] },
@@ -67,7 +67,7 @@ export const COUNTRIES: Country[] = [
   { iso3: 'CAN', name: 'Canada', lat: 45.42, lng: -75.7, index: ['^GSPTSE', 'S&P/TSX'], fx: ['CAD=X', 'USD/CAD'], bond: 'CA' },
   { iso3: 'MEX', name: 'Mexico', lat: 19.43, lng: -99.13, index: ['^MXX', 'IPC'], fx: ['MXN=X', 'USD/MXN'], bond: 'MX' },
   { iso3: 'BRA', name: 'Brazil', lat: -15.79, lng: -47.88, index: ['^BVSP', 'Bovespa'], fx: ['BRL=X', 'USD/BRL'] },
-  { iso3: 'ARG', name: 'Argentina', lat: -34.6, lng: -58.38, index: ['^MERV', 'MERVAL'], fx: ['ARS=X', 'USD/ARS'] },
+  { iso3: 'ARG', name: 'Argentina', lat: -34.6, lng: -58.38, index: ['ARGT', 'Global X MSCI Argentina ETF'], fx: ['ARS=X', 'USD/ARS'] },
   { iso3: 'CHL', name: 'Chile', lat: -33.45, lng: -70.67, fx: ['CLP=X', 'USD/CLP'], bond: 'CL' },
   { iso3: 'GBR', name: 'United Kingdom', lat: 51.51, lng: -0.13, index: ['^FTSE', 'FTSE 100'], fx: ['GBPUSD=X', 'GBP/USD'], bond: 'GB' },
   { iso3: 'DEU', name: 'Germany', lat: 52.52, lng: 13.4, index: ['^GDAXI', 'DAX'], fx: ['EURUSD=X', 'EUR/USD'], bond: 'DE' },

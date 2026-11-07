@@ -431,3 +431,12 @@ select.layout-pick { width: auto; }
 /* keep the map row a sensible height: the indices list scrolls inside its card instead of stretching the row */
 #p-indices .pb { max-height: 600px; overflow: auto; }
 .mappanel .mapwrap { min-height: 560px; max-height: 760px; }
+
+/* workspace tabs (top bar), pill nav like the reference's Live Map / Fleet / Routes */
+.ws-tabs { display: flex; gap: 2px; margin-left: 10px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.ws-tabs::-webkit-scrollbar { display: none; }
+.ws-tabs button { background: none; border: 0; border-radius: 999px; padding: 7px 14px; font: 400 13px var(--sans); color: var(--dim); cursor: pointer; white-space: nowrap; }
+.ws-tabs button:hover { color: var(--text); }
+.ws-tabs button.on { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+@media (max-width: 1320px) { .brand em { display: none; } .cmd-open { min-width: 180px; } }
+@media (max-width: 760px) { .bar { flex-wrap: wrap; height: auto; padding: 8px 12px; row-gap: 6px; } .ws-tabs { order: 5; width: 100%; margin-left: 0; } }

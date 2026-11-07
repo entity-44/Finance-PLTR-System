@@ -148,6 +148,9 @@ export async function chartQuotes(symbols: string[], range: string, interval: st
   return out;
 }
 
+/** A quote whose last trade is more than 5 days old: the source has stopped updating (not a flat day). */
+export const isStaleQuote = (q: Quote, now = Date.now()) => q.time > 0 && now - q.time > 5 * 86_400_000;
+
 // ---- shared intraday quotes: every panel registers the symbols it shows; one source fetches them all ----
 const wanted = new Set<string>();
 export const QUOTES: SourceDef<Record<string, Quote>> = {

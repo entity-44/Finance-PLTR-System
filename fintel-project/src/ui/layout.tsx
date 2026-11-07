@@ -1,36 +1,54 @@
 import { useEffect, useState, type ReactNode } from 'react';
 
-// Panel layout: an ordered list of panels with grid widths. Presets plus a saved custom layout.
+// Panel layout: workspaces (tabs), each an ordered list of panels with grid widths, editable and saved per browser.
 
 export type Span = 'c3' | 'c4' | 'c6' | 'c8' | 'c12';
 export interface Item { key: string; span: Span }
-export interface Layout { name: string; items: Item[] }
 export const SPANS: Span[] = ['c3', 'c4', 'c6', 'c8', 'c12'];
 
 const it = (s: string): Item[] => s.trim().split(/\s+/).map((x) => { const [key, n] = x.split(':'); return { key, span: ('c' + n) as Span }; });
-export const PRESETS: Layout[] = [
-  { name: 'Full terminal', items: it('map:8 indices:4 sectors:4 vol:4 fx:4 heatmap:8 cmdty:4 watch:8 alerts:4 crypto:4 curve:4 cb:4 rates:4 credit:4 auctions:4 eco:12 weo:12 cot:12 link:12 news:6 filings:3 cal:3 hist:6 brief:6') },
-  { name: 'Equities desk', items: it('indices:4 sectors:4 vol:4 heatmap:8 alerts:4 watch:8 cal:4 link:12 filings:6 news:6 hist:6 brief:6') },
-  { name: 'Macro & rates', items: it('curve:4 cb:4 rates:4 credit:4 eco:8 weo:12 cot:8 auctions:4 fx:4 cmdty:4 vol:4 map:8 news:4') },
-  { name: 'Cross-asset', items: it('map:8 indices:4 fx:4 cmdty:4 rates:4 crypto:4 vol:4 curve:4 weo:12 cot:12 news:12') },
-];
-const KEY = 'fintel.layout';
 
-export function useLayout(known: string[]) {
-  const [layout, setLayout] = useState<Layout>(() => {
-    try {
-      const l = JSON.parse(localStorage.getItem(KEY) || 'null') as Layout | null;
-      const preset = PRESETS.find((p) => p.name === l?.name);
-      if (preset) return preset;
-      if (l?.items?.length) return { name: l.name, items: l.items.filter((i) => known.includes(i.key)) };
+/** Workspaces: tabs across the top, each with its own panel layout (rows sum to 12). */
+export interface Workspace { id: string; name: string; items: Item[] }
+export const WORKSPACES: Workspace[] = [
+  { id: 'overview', name: 'Overview', items: it('map:8 indices:4 heatmap:8 alerts:4 news:6 brief:6 sectors:4 vol:4 cmdty:4') },
+  { id: 'markets', name: 'Markets', items: it('indices:4 sectors:4 vol:4 heatmap:8 cmdty:4 watch:8 fx:4 crypto:4 hist:8 alerts:4 cot:8') },
+  { id: 'macro', name: 'Macro & Rates', items: it('curve:4 cb:4 rates:4 credit:4 eco:8 weo:12 auctions:4 cot:8') },
+  { id: 'geo', name: 'Geo', items: it('map:12 events:8 news:4 weo:12 rates:4 fx:4 cmdty:4') },
+  { id: 'companies', name: 'Companies', items: it('link:12 filings:4 cal:4 news:4 watch:8 alerts:4') },
+];
+const KEY = 'fintel.workspaces'; // { active, custom: { [workspaceId]: Item[] } }
+const OLD_KEY = 'fintel.layout';  // single custom layout from before workspaces
+
+const fromHash = () => { const m = location.hash.match(/^#\/w\/([a-z]+)/); return m && WORKSPACES.some((w) => w.id === m[1]) ? m[1] : null; };
+
+export function useWorkspaces(known: string[]) {
+  const [state, setState] = useState<{ active: string; custom: Record<string, Item[]> }>(() => {
+    let saved: { active?: string; custom?: Record<string, Item[]> } = {};
+    try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { /* ignore */ }
+    const custom = saved.custom ?? {};
+    try { // carry an old custom layout into Overview once
+      const old = JSON.parse(localStorage.getItem(OLD_KEY) || 'null') as { name?: string; items?: Item[] } | null;
+      if (old?.name === 'Custom' && old.items?.length && !custom.overview) custom.overview = old.items;
+      localStorage.removeItem(OLD_KEY);
     } catch { /* ignore */ }
-    return PRESETS[0];
+    const active = fromHash() ?? (WORKSPACES.some((w) => w.id === saved.active) ? saved.active! : 'overview');
+    return { active, custom };
   });
-  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(layout)); } catch { /* ignore */ } }, [layout]);
-  const edit = (f: (items: Item[]) => Item[]) => setLayout((l) => ({ name: 'Custom', items: f([...l.items]) }));
+  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* ignore */ } }, [state]);
+  useEffect(() => { const f = () => { const h = fromHash(); if (h) setState((s) => ({ ...s, active: h })); }; addEventListener('hashchange', f); return () => removeEventListener('hashchange', f); }, []);
+  const ws = WORKSPACES.find((w) => w.id === state.active) ?? WORKSPACES[0];
+  const items = (state.custom[ws.id] ?? ws.items).filter((i) => known.includes(i.key));
+  const edit = (f: (items: Item[]) => Item[]) => setState((s) => ({ ...s, custom: { ...s.custom, [ws.id]: f(items.map((i) => ({ ...i }))) } }));
+  const go = (id: string) => {
+    setState((s) => ({ ...s, active: id }));
+    if (!location.hash.startsWith('#/c/')) history.replaceState(null, '', `#/w/${id}`);
+  };
   return {
-    layout,
-    choose: (p: Layout) => setLayout({ name: p.name, items: p.items.map((i) => ({ ...i })) }),
+    ws, items, customised: !!state.custom[ws.id], go,
+    /** which workspace shows a panel by default (the current one first) */
+    home: (key: string) => (items.some((i) => i.key === key) ? ws.id : WORKSPACES.find((w) => (state.custom[w.id] ?? w.items).some((i) => i.key === key))?.id),
+    reset: () => setState((s) => { const c = { ...s.custom }; delete c[ws.id]; return { ...s, custom: c }; }),
     move: (key: string, d: -1 | 1) => edit((xs) => { const i = xs.findIndex((x) => x.key === key), j = i + d; if (i < 0 || j < 0 || j >= xs.length) return xs; [xs[i], xs[j]] = [xs[j], xs[i]]; return xs; }),
     moveTo: (key: string, before: string) => edit((xs) => { const i = xs.findIndex((x) => x.key === key); if (i < 0 || key === before) return xs; const [m] = xs.splice(i, 1); const j = xs.findIndex((x) => x.key === before); xs.splice(j < 0 ? xs.length : j, 0, m); return xs; }),
     resize: (key: string, d: -1 | 1) => edit((xs) => xs.map((x) => (x.key === key ? { ...x, span: SPANS[Math.max(0, Math.min(SPANS.length - 1, SPANS.indexOf(x.span) + d))] } : x))),

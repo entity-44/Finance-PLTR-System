@@ -56,12 +56,13 @@ The app lives in `fintel-project/`. See its README for running it and the source
 - OECD 10Y government yields on FRED: `IRLTLT01<CC>M156N` (monthly). Live for 29 OECD countries; none for
   BR, CN, IN, ID, TR, CO (404) and RU (stopped 2018).
 - Yahoo indices that don't exist: ^IPSA (Chile), ^COLCAP (use ICOLCAP.CL ETF), ^SPBLPGPT (Peru), ^PX (Prague = 0),
-  ^KSE100, ^MASI, ^NGSE, ^QSI, ^DFMGI. Countries without one show currency only.
+  ^KSE100, ^MASI, ^NGSE, ^QSI, ^DFMGI. Countries without one show currency only. ^MERV stopped updating
+  2026-10-16 (Argentina uses the ARGT ETF). Quotes older than 5 days show 'as of <date>' (`isStaleQuote`).
 - Company data (`src/data/company.ts`): CIK from company_tickers.json; submissions + XBRL companyfacts from
   data.sec.gov (companyfacts has no CORS, so the site precomputes); Form 4 raw XML = primaryDocument with the
   `xslF345X05/` prefix removed. TTM = last FY + current YTD − prior-year YTD. Unit-tested.
-- Layout (`src/ui/layout.tsx`): panel registry lives in App.tsx (`PANELS`), presets in layout.tsx; each preset
-  row should sum to 12.
+- Layout (`src/ui/layout.tsx`): panel registry lives in App.tsx (`PANELS`); `WORKSPACES` (tabs: Overview, Markets,
+  Macro & Rates, Geo, Companies) each have a default layout, rows summing to 12; edits are saved per tab (`#/w/<id>`).
 
 ## Look (v6, from Luis's Vexto reference)
 - Charcoal `#0c0c0c` page, 22px rounded gradient cards with no header rules, sentence-case titles with a faint ↗.

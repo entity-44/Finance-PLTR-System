@@ -5,7 +5,7 @@ import { feature } from 'topojson-client';
 import type { GeometryCollection, Topology } from 'topojson-specification';
 import type { Feature, FeatureCollection } from 'geojson';
 import countriesUrl from 'world-atlas/countries-50m.json?url';
-import { useQuotes } from '@/data/yahoo';
+import { isStaleQuote, useQuotes } from '@/data/yahoo';
 import { useSource } from '@/data/store';
 import { IMF, IMF_INDICATORS, POLICY, WB_INDICATORS, worldBankSource, type ImfData } from '@/data/sources';
 import { bondId, policyArea, CHOKEPOINTS, COUNTRIES, type Country } from '@/data/universe';
@@ -225,7 +225,7 @@ export function WorldMap() {
             </div>
             <table className="t" style={{ marginTop: 6 }}>
               <tbody>
-                {sel.index && <tr><td>{sel.index[1]}</td><td>{iq ? price(iq.price) : '—'}</td><td><Chg v={iq?.changePct} /></td></tr>}
+                {sel.index && <tr><td>{sel.index[1]}</td><td>{iq ? price(iq.price) : '—'}</td><td>{iq && isStaleQuote(iq) ? <small className="faint">as of {new Date(iq.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small> : <Chg v={iq?.changePct} />}</td></tr>}
                 {sel.fx && <tr><td>{sel.fx[1]}</td><td>{fq ? price(fq.price) : '—'}</td><td><Chg v={fq?.changePct} /></td></tr>}
                 {pr && <tr title="Central bank policy rate (BIS). Change is versus a year earlier."><td>Policy rate<br /><small className="faint">{pr.area === 'XM' ? 'ECB' : 'central bank'}{pr.changed ? ' · moved ' + new Date(pr.changed + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : ''}</small></td><td>{pr.v.toFixed(2)}%</td><td>{pr.y1 != null ? <Chg v={(pr.v - pr.y1) * 100} dp={0} suffix="bp" invert /> : ''}</td></tr>}
                 {sel.bond && <tr title="Monthly average long-term (10-year) government bond yield, OECD via FRED. Change is versus a year earlier."><td>10Y gov't yield<br /><small className="faint">{bond ? new Date(bond.d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'OECD'}</small></td><td>{bond ? bond.v.toFixed(2) + '%' : '—'}</td><td>{bond && bondPrev ? <Chg v={(bond.v - bondPrev.v) * 100} dp={0} suffix="bp" invert /> : ''}</td></tr>}

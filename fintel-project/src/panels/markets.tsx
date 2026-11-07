@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { chart, chartAsOf, spark, SNAP_FILES, useQuotes, type Bars, type Quote } from '@/data/yahoo';
+import { chart, chartAsOf, spark, SNAP_FILES, useQuotes, type Bars, type Quote, isStaleQuote } from '@/data/yahoo';
 import { snapTime, STATIC } from '@/lib/env';
 import { sourceFor, useSource } from '@/data/store';
 import { COMMODITIES, DEFAULT_WATCHLIST, FX, HEATMAP, INDICES, SECTORS, TAPE, VOL } from '@/data/universe';
@@ -29,7 +29,7 @@ function QuoteRows({ items, q, onPick, sel, range = true }: { items: [string, st
           <tr key={s} className={(onPick ? 'click' : '') + (sel === s ? ' sel' : '')} onClick={onPick ? () => onPick(s) : undefined}>
             <td>{label}</td>
             <td>{x ? price(x.price) : '—'}</td>
-            <td><Chg v={x?.changePct} /></td>
+            <td>{x && isStaleQuote(x) ? <small className="faint" title={`No trades since ${new Date(x.time).toDateString()} at the source`}>as of {new Date(x.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small> : <Chg v={x?.changePct} />}</td>
             <td><Spark data={x?.spark ?? []} base={x?.prev} w={64} h={18} /></td>
             {range && <td className="hs"><RangeBar lo={x?.yearLow} hi={x?.yearHigh} v={x?.price} w={54} /></td>}
           </tr>
